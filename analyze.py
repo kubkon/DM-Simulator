@@ -18,18 +18,18 @@ import scipy.stats as stats
 
 ### Parse command line arguments
 parser = argparse.ArgumentParser(description="DM simulation -- Analysis script")
-parser.add_argument('save_dir', help='output directory')
+parser.add_argument('input_dir', help='directory with simulation results')
 parser.add_argument('--confidence', dest='confidence', default=0.99,
                     type=float, help='confidence value (default: 0.99)')
 args = parser.parse_args()
-save_dir = args.save_dir
+input_dir = args.input_dir
 confidence = args.confidence
 
 ### Merge results from files
 # Get files (as strings)
 extension = ".out"
-file_names = set([f[:f.find(extension)] for _, _, files in os.walk(save_dir) for f in files if f.endswith(extension)])
-file_paths = [os.path.join(root, f) for root, _, files in os.walk(save_dir) for f in files if f.endswith(extension)]
+file_names = set([f[:f.find(extension)] for _, _, files in os.walk(input_dir) for f in files if f.endswith(extension)])
+file_paths = [os.path.join(root, f) for root, _, files in os.walk(input_dir) for f in files if f.endswith(extension)]
 # Initial processing of data (includes warm-up period)
 ref_column = 'sr_number'
 for name in file_names:
@@ -59,6 +59,10 @@ for name in file_names:
   # Compute confidence intervals for the mean
   cis = list(map(lambda x: x * stats.t.ppf(0.5 + confidence/2, repetitions-1), ses))
   # Save to a file
+  # Create save dir if doesn't exist
+  save_dir = input_dir + '/transient'
+  if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
   with open(save_dir + '/' + name + extension, 'w', newline='', encoding='utf-8') as f:
     writer = csv.writer(f, delimiter=',')
     zip_input = [data_in[0][ref_column], means, sds, ses, cis]
