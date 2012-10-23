@@ -40,10 +40,8 @@ file_paths = [os.path.join(root, f) for root, _, files in os.walk(input_dir) for
 ref_column = 'sr_number'
 # Ask for warm-up period index (if mode is steady-state)
 if mode.lower() == 'steady-state':
-  save_dir = input_dir + '/' + ss_dir
   warmup = int(input('Warm-up period index: '))
 elif mode.lower() == 'transient':
-  save_dir = input_dir + '/' + transient_dir
   warmup = 0
 else:
   sys.exit('Unknown mode specified.')
@@ -67,24 +65,45 @@ for name in file_names:
   # Get number of replications (equal to number of dictionaries in data_in)
   repetitions = len(data_in)
   # Map and reduce...
-  # Compute mean
-  zipped = zip(*[dct[key] for dct in data_in for key in dct.keys() if key != ref_column])
-  means = list(map(lambda x: sum(x)/repetitions, zipped))
-  # Compute standard deviation
-  zipped = zip(*[dct[key] for dct in data_in for key in dct.keys() if key != ref_column])
-  sds = [np.sqrt(sum(map(lambda x: (x-mean)**2, tup)) / (repetitions - 1)) for (tup, mean) in zip(zipped, means)]
-  # Compute standard error for the mean
-  ses = list(map(lambda x: x/np.sqrt(repetitions), sds))
-  # Compute confidence intervals for the mean
-  cis = list(map(lambda x: x * stats.t.ppf(0.5 + confidence/2, repetitions-1), ses))
-  # Save to a file
-  # Create save dir if doesn't exist already
-  if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
-  with open(save_dir + '/' + name + extension, 'w', newline='', encoding='utf-8') as f:
-    writer = csv.writer(f, delimiter=',')
-    zip_input = [data_in[0][ref_column], means, sds, ses, cis]
-    out_headers = [ref_column, 'mean', 'sd', 'se', 'ci']
-    writer.writerow(out_headers)
-    for tup in zip(*zip_input):
-      writer.writerow(tup)
+  if mode.lower() == 'steady-state':
+    # Compute steady-state mean average
+    averages = [sum(dct[key]) / len(dct[key]) for dct in data_in for key in dct.keys() if key != ref_column]
+    mean = sum(averages) / len(averages)
+    # Compute standard deviation
+    sd = np.sqrt(sum(map(lambda x: (x-mean)**2, averages)) / (len(averages)-1))
+    # Compute standard error for the mean
+    se = sd / np.sqrt(len(averages))
+    # Compute confidence intervals for the mean
+    ci = se * stats.t.ppf(0.5 + confidence/2, len(averages)-1)
+    # Save to a file
+    # Create save dir if doesn't exist already
+    save_dir = input_dir + '/' + ss_dir
+    if not os.path.exists(save_dir):
+      os.makedirs(save_dir)
+    with open(save_dir + '/' + name + extension, 'w', newline='', encoding='utf-8') as f:
+      writer = csv.writer(f, delimiter=',')
+      writer.writerow(['mean', 'sd', 'se', 'ci'])
+      writer.writerow([mean, sd, se, ci])
+  else:
+    # Compute mean
+    zipped = zip(*[dct[key] for dct in data_in for key in dct.keys() if key != ref_column])
+    means = list(map(lambda x: sum(x)/repetitions, zipped))
+    # Compute standard deviation
+    zipped = zip(*[dct[key] for dct in data_in for key in dct.keys() if key != ref_column])
+    sds = [np.sqrt(sum(map(lambda x: (x-mean)**2, tup)) / (repetitions - 1)) for (tup, mean) in zip(zipped, means)]
+    # Compute standard error for the mean
+    ses = list(map(lambda x: x/np.sqrt(repetitions), sds))
+    # Compute confidence intervals for the mean
+    cis = list(map(lambda x: x * stats.t.ppf(0.5 + confidence/2, repetitions-1), ses))
+    # Save to a file
+    # Create save dir if doesn't exist already
+    save_dir = input_dir + '/' + transient_dir
+    if not os.path.exists(save_dir):
+      os.makedirs(save_dir)
+    with open(save_dir + '/' + name + extension, 'w', newline='', encoding='utf-8') as f:
+      writer = csv.writer(f, delimiter=',')
+      zip_input = [data_in[0][ref_column], means, sds, ses, cis]
+      out_headers = [ref_column, 'mean', 'sd', 'se', 'ci']
+      writer.writerow(out_headers)
+      for tup in zip(*zip_input):
+        writer.writerow(tup)
