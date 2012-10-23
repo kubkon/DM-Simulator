@@ -20,7 +20,7 @@ import time
 warnings.simplefilter("ignore", RuntimeWarning)
 
 ### Parse command line arguments
-parser = argparse.ArgumentParser(description="DM simulation toolkit")
+parser = argparse.ArgumentParser(description="DM simulation -- Main script")
 parser.add_argument('sim_duration', metavar='simulation_duration',
                     type=int, help='simulation duration in seconds')
 parser.add_argument('--id', dest='id', default=0,
