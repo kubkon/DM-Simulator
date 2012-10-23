@@ -43,6 +43,7 @@ if mode.lower() == 'steady-state':
   warmup = int(input('Warm-up period index: '))
 elif mode.lower() == 'transient':
   warmup = 0
+  window_size = int(input('Window size: '))
 else:
   sys.exit('Unknown mode specified.')
 
@@ -62,8 +63,6 @@ for name in file_names:
               val = float(row[key]) if key != ref_column else int(row[key])
               dct.setdefault(key, []).append(val)
         data_in.append(dct)
-  # Get number of replications (equal to number of dictionaries in data_in)
-  repetitions = len(data_in)
   # Map and reduce...
   if mode.lower() == 'steady-state':
     # Compute steady-state mean average
@@ -87,14 +86,23 @@ for name in file_names:
   else:
     # Compute mean
     zipped = zip(*[dct[key] for dct in data_in for key in dct.keys() if key != ref_column])
-    means = list(map(lambda x: sum(x)/repetitions, zipped))
+    init_means = list(map(lambda x: sum(x)/len(data_in), zipped))
+    means = []
+    if window_size == 0:
+      means = init_means
+    else:
+      for i in range(len(init_means) - window_size):
+        if i < window_size:
+          means += [sum([init_means[i+s] for s in range(-i, i+1)]) / (2*(i+1) - 1)]
+        else:
+          means += [sum([init_means[i+s] for s in range(-window_size, window_size+1)]) / (2*window_size + 1)]
     # Compute standard deviation
     zipped = zip(*[dct[key] for dct in data_in for key in dct.keys() if key != ref_column])
-    sds = [np.sqrt(sum(map(lambda x: (x-mean)**2, tup)) / (repetitions - 1)) for (tup, mean) in zip(zipped, means)]
+    sds = [np.sqrt(sum(map(lambda x: (x-mean)**2, tup)) / (len(means) - 1)) for (tup, mean) in zip(zipped, means)]
     # Compute standard error for the mean
-    ses = list(map(lambda x: x/np.sqrt(repetitions), sds))
+    ses = list(map(lambda x: x/np.sqrt(len(means)), sds))
     # Compute confidence intervals for the mean
-    cis = list(map(lambda x: x * stats.t.ppf(0.5 + confidence/2, repetitions-1), ses))
+    cis = list(map(lambda x: x * stats.t.ppf(0.5 + confidence/2, len(means)-1), ses))
     # Save to a file
     # Create save dir if doesn't exist already
     save_dir = input_dir + '/' + transient_dir
