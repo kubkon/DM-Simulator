@@ -63,8 +63,8 @@ class Bidder:
   """
   # ID counter
   _id_counter = 0
-  # Default reputation update params
-  rep_update_params = (0.01, 0.01, 1, 1)
+  # Default reputation window size
+  reputation_window_size = 5
   
   def __init__(self, total_capacity, costs=None):
     """
@@ -234,13 +234,8 @@ class Bidder:
     logging.debug("{} => user success report list: {}".format(self, self._success_list))
     logging.debug("{} => latest user success report: {}".format(self, self._success_list[-1]))
     # Compute reputation rating update
-    if len(self._success_list) == Bidder.rep_update_params[2]:
-      if sum(self._success_list) / len(self._success_list) >= Bidder.rep_update_params[3]:
-        rep_decrease = Bidder.rep_update_params[1]
-        self._reputation = self._reputation - rep_decrease if self._reputation >= rep_decrease else 0.0
-      else:
-        rep_increase = Bidder.rep_update_params[0]
-        self._reputation = self._reputation + rep_increase if self._reputation + rep_increase <= 1.0 else 1.0
+    if len(self._success_list) == Bidder.reputation_window_size:
+      self._reputation = sum(self._success_list) / len(self._success_list)
       self._success_list.pop(0)
     logging.debug("{} => reputation: {}".format(self, self._reputation))
     logging.debug("{} => service type: {}".format(self, service_type))
