@@ -27,6 +27,14 @@ mode = args.mode
 confidence = args.confidence
 
 ### Common params
+# Ask for warm-up period index (if mode is steady-state)
+if mode.lower() == 'steady-state':
+  warmup = int(input('Warm-up period index: '))
+elif mode.lower() == 'transient':
+  warmup = 0
+  window_size = int(input('Window size: '))
+else:
+  sys.exit('Unknown mode specified.')
 # Output dir names
 transient_dir = 'transient'
 ss_dir = 'steady-state'
@@ -38,14 +46,6 @@ file_paths = [os.path.join(root, f) for root, _, files in os.walk(input_dir) for
               if f.endswith(extension) and transient_dir not in root and ss_dir not in root]
 # Reference column
 ref_column = 'sr_number'
-# Ask for warm-up period index (if mode is steady-state)
-if mode.lower() == 'steady-state':
-  warmup = int(input('Warm-up period index: '))
-elif mode.lower() == 'transient':
-  warmup = 0
-  window_size = int(input('Window size: '))
-else:
-  sys.exit('Unknown mode specified.')
 
 ### Merge results from files
 for name in file_names:
