@@ -105,7 +105,7 @@ for name in file_names:
     cis = list(map(lambda x: x * stats.t.ppf(0.5 + confidence/2, len(means)-1), ses))
     # Save to a file
     # Create save dir if doesn't exist already
-    save_dir = input_dir + '/' + transient_dir
+    save_dir = input_dir + '/' + transient_dir + '_{}'.format(window_size)
     if not os.path.exists(save_dir):
       os.makedirs(save_dir)
     with open(save_dir + '/' + name + extension, 'w', newline='', encoding='utf-8') as f:
