@@ -235,7 +235,7 @@ class Bidder:
     logging.debug("{} => latest user success report: {}".format(self, self._success_list[-1]))
     # Compute reputation rating update
     if len(self._success_list) == Bidder.reputation_window_size:
-      self._reputation = sum(self._success_list) / len(self._success_list)
+      self._reputation = 1 - (sum(self._success_list) / len(self._success_list))
       self._success_list.pop(0)
     logging.debug("{} => reputation: {}".format(self, self._reputation))
     logging.debug("{} => service type: {}".format(self, service_type))
