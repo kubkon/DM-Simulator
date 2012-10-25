@@ -81,7 +81,7 @@ class Bidder:
     # Initialize costs dict (cost per service type)
     self._costs = {} if costs is None else costs
     # Initialize reputation to default value
-    self._reputation = 0.5
+    self._reputation = 0.0
     # Initialize reputation history list
     self._reputation_history = []
     # Initialize winnings history list
