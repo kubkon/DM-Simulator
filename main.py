@@ -50,8 +50,8 @@ logging.info("Simulation duration set to: {}".format(sim_duration))
 
 ### Create simulation-specific scenario
 # Create Bidders
-bidders = [dm.Bidder(10000, {dm.DMEventHandler.WEB_BROWSING: 0.5}),
-           dm.Bidder(10000, {dm.DMEventHandler.WEB_BROWSING: 0.5})] 
+bidders = [dm.Bidder(10000, costs={dm.DMEventHandler.WEB_BROWSING: 0.5}, reputation=0.0),
+           dm.Bidder(10000, costs={dm.DMEventHandler.WEB_BROWSING: 0.5}, reputation=0.0)] 
 # Set reputation rating params:
 # increase, decrease, depth, and percentage
 dm.Bidder.reputation_window_size = 10
