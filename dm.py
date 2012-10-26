@@ -66,13 +66,14 @@ class Bidder:
   # Default reputation window size
   reputation_window_size = 5
   
-  def __init__(self, total_capacity, costs=None):
+  def __init__(self, total_capacity, costs=None, reputation=0.5):
     """
     Constructs Bidder instance
     
     Keyword arguments:
     total_capacity -- Total capacity available
     costs -- (Optional) costs per service type
+    reputation -- (Optional) initial reputation value
     """
     # Create ID for this instance
     self._id = Bidder._id_counter
@@ -81,7 +82,7 @@ class Bidder:
     # Initialize costs dict (cost per service type)
     self._costs = {} if costs is None else costs
     # Initialize reputation to default value
-    self._reputation = 0.0
+    self._reputation = reputation
     # Initialize reputation history list
     self._reputation_history = []
     # Initialize winnings history list

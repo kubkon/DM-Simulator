@@ -23,27 +23,24 @@ parser.add_argument('--confidence', dest='confidence', default=0.99,
                     type=float, help='confidence value (default: 0.99)')
 args = parser.parse_args()
 input_dir = args.input_dir
-mode = args.mode
+mode = args.mode.lower()
 confidence = args.confidence
 
 ### Common params
 # Ask for warm-up period index (if mode is steady-state)
-if mode.lower() == 'steady-state':
+if mode == 'steady-state':
   warmup = int(input('Warm-up period index: '))
-elif mode.lower() == 'transient':
+elif mode == 'transient':
   warmup = 0
   window_size = int(input('Window size: '))
 else:
   sys.exit('Unknown mode specified.')
-# Output dir names
-transient_dir = 'transient'
-ss_dir = 'steady-state'
 # File names and paths
 extension = ".out"
 file_names = set([f[:f.find(extension)] for root, _, files in os.walk(input_dir) for f in files \
-                  if f.endswith(extension) and transient_dir not in root and ss_dir not in root])
+                  if f.endswith(extension) and 'transient' not in root and 'steady-state' not in root])
 file_paths = [os.path.join(root, f) for root, _, files in os.walk(input_dir) for f in files \
-              if f.endswith(extension) and transient_dir not in root and ss_dir not in root]
+              if f.endswith(extension) and 'transient' not in root and 'steady-state' not in root]
 # Reference column
 ref_column = 'sr_number'
 
@@ -64,7 +61,7 @@ for name in file_names:
               dct.setdefault(key, []).append(val)
         data_in.append(dct)
   # Map and reduce...
-  if mode.lower() == 'steady-state':
+  if mode == 'steady-state':
     # Compute steady-state mean average
     averages = [sum(dct[key]) / len(dct[key]) for dct in data_in for key in dct.keys() if key != ref_column]
     mean = sum(averages) / len(averages)
@@ -76,7 +73,7 @@ for name in file_names:
     ci = se * stats.t.ppf(0.5 + confidence/2, len(averages)-1)
     # Save to a file
     # Create save dir if doesn't exist already
-    save_dir = input_dir + '/' + ss_dir
+    save_dir = input_dir + '/' + mode
     if not os.path.exists(save_dir):
       os.makedirs(save_dir)
     with open(save_dir + '/' + name + extension, 'w', newline='', encoding='utf-8') as f:
@@ -105,7 +102,7 @@ for name in file_names:
     cis = list(map(lambda x: x * stats.t.ppf(0.5 + confidence/2, len(means)-1), ses))
     # Save to a file
     # Create save dir if doesn't exist already
-    save_dir = input_dir + '/' + transient_dir + '_{}'.format(window_size)
+    save_dir = input_dir + '/' + mode + '_{}'.format(window_size)
     if not os.path.exists(save_dir):
       os.makedirs(save_dir)
     with open(save_dir + '/' + name + extension, 'w', newline='', encoding='utf-8') as f:
