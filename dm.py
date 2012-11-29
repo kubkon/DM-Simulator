@@ -408,8 +408,11 @@ class DMEventHandler(sim.EventHandler):
     """
     Schedules next service request termination event
     """
+    prng = self._simulation_engine.prng
+    # Calculate duration
+    delta_time = prng.exponential(1 / self._duration)
     # Create next service termination event
-    event = sim.Event(DMEventHandler.ST_EVENT, base_time + self._duration, bundle=bundle)
+    event = sim.Event(DMEventHandler.ST_EVENT, base_time + delta_time, bundle=bundle)
     # Schedule the event
     self._simulation_engine.schedule(event)
   
