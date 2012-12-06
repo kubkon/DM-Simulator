@@ -95,6 +95,8 @@ class Bidder:
     self._available_capacity = total_capacity
     # Initialize user success report list
     self._success_list = []
+    # Initialize dictionary of service dedicated bitrates
+    self._dedicated_bitrates = {}
   
   def __str__(self):
     return "Bidder_" + str(self._id)
@@ -219,17 +221,19 @@ class Bidder:
     
     Keyword arguments:
     sr_number -- Auction (SR) number
-    sr_capacity -- Required capacity by the service
+    sr_capacity -- Required bitrate by the service
     """
     # Save current profit in a profit history dict
     self._profit_history[sr_number] = self._current_profit
-    # Update capacity & reputation
-    diff_capacity = self._available_capacity - DMEventHandler.BITRATES[service_type]
-    # Update available capacity and store user success report
-    if diff_capacity >= 0:
-      self._available_capacity = diff_capacity
+    # Update bitrate & reputation
+    sr_bitrate = DMEventHandler.BITRATES[service_type]
+    # Update available bitrate and store user success report
+    if self._available_capacity >= sr_bitrate:
+      self._dedicated_bitrates[sr_number] = sr_bitrate
+      self._available_capacity -= sr_bitrate
       self._success_list += [1]
     else:
+      self._dedicated_bitrates[sr_number] = self._available_capacity
       self._available_capacity = 0
       self._success_list += [0]
     logging.debug("{} => user success report list: {}".format(self, self._success_list))
@@ -241,17 +245,18 @@ class Bidder:
     logging.debug("{} => reputation: {}".format(self, self._reputation))
     logging.debug("{} => service type: {}".format(self, service_type))
     logging.debug("{} => available bitrate: {}".format(self, self._available_capacity))
+    logging.debug("{} => service no. {} dedicated bitrate: {}".format(self, sr_number, self._dedicated_bitrates[sr_number]))
   
-  def finish_servicing_request(self, service_type):
+  def finish_servicing_request(self, sr_number):
     """
     Updates params when finishing servicing buyers service request
     """
-    # Update available capacity
-    sr_capacity = DMEventHandler.BITRATES[service_type]
-    cap_sum = self._available_capacity + sr_capacity
-    self._available_capacity = cap_sum if cap_sum < self._total_capacity else self._total_capacity
-    logging.debug("{} => service type: {}".format(self, service_type))
+    # Update available bitrate
+    sr_bitrate = self._dedicated_bitrates[sr_number]
+    del self._dedicated_bitrates[sr_number]
+    self._available_capacity += sr_bitrate
     logging.debug("{} => available bitrate: {}".format(self, self._available_capacity))
+    logging.debug("{} => service no. {} dedicated bitrate: {}".format(self, sr_number, sr_bitrate))
   
 
 class DMEventHandler(sim.EventHandler):
@@ -383,8 +388,8 @@ class DMEventHandler(sim.EventHandler):
       self._schedule_sr_event(event.time)
     elif event.identifier == DMEventHandler.ST_EVENT:
       # A bidder finished handling request
-      bidder, service_type = event.kwargs.get('bundle', None)
-      bidder.finish_servicing_request(service_type)
+      bidder, sr_number = event.kwargs.get('bundle', None)
+      bidder.finish_servicing_request(sr_number)
     else:
       # End of simulation event
       pass
@@ -445,7 +450,7 @@ class DMEventHandler(sim.EventHandler):
       b.update_winning_history(True if b == winner else False)
     winner.service_request(self._sr_count, service_type)
     # Schedule termination event
-    self._schedule_st_event(event.time, (winner, service_type))
+    self._schedule_st_event(event.time, (winner, self._sr_count))
   
   def _save_results(self):
     """
