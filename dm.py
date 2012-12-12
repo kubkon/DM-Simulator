@@ -16,8 +16,21 @@ import unittest
 
 
 class NumericalToolbox:
+  """
+  Helper class; provides numerical routines.
+  """
   @classmethod
   def estimate_bid_hat_function(cls, w, reps, granularity=1000):
+    """
+    Estimates myopic bidding function when there are 
+    two network operators.
+    
+    Keyword arguments:
+    cls -- Class instance
+    w -- Price weight
+    reps -- List of reputation ratings
+    granularity -- (Optional) Sampling granularity
+    """
     # Calculate params
     v1 = [(1-w)*reps[0], (1-w)*reps[0] + w]
     v2 = [(1-w)*reps[1], (1-w)*reps[1] + w]
@@ -58,28 +71,27 @@ class NumericalToolbox:
 
 class Bidder:
   """
-  Represents bidder in the Digital Marketplace; hence
-  a network operator
+  Represents network operator in the Digital Marketplace.
   """
   # ID counter
   _id_counter = 0
   # Default reputation window size
   reputation_window_size = 5
   
-  def __init__(self, total_capacity, costs=None, reputation=0.5):
+  def __init__(self, total_bitrate, costs=None, reputation=0.5):
     """
-    Constructs Bidder instance
+    Constructs Bidder instance.
     
     Keyword arguments:
-    total_capacity -- Total capacity available
-    costs -- (Optional) costs per service type
-    reputation -- (Optional) initial reputation value
+    total_bitrate -- Total available bit-rate
+    costs -- (Optional) Costs per service type
+    reputation -- (Optional) Initial reputation value
     """
     # Create ID for this instance
     self._id = Bidder._id_counter
     # Increment ID counter
     Bidder._id_counter += 1
-    # Initialize costs dict (cost per service type)
+    # Initialize costs dictionary (key: service type)
     self._costs = {} if costs is None else costs
     # Initialize reputation to default value
     self._reputation = reputation
@@ -89,77 +101,80 @@ class Bidder:
     self._winning_history = []
     # Initialize profit history dict (key: auction number)
     self._profit_history = {}
-    # Assign total capacity available to the bidder
-    self._total_capacity = total_capacity
-    # Initialize available capacity
-    self._available_capacity = total_capacity
+    # Assign total available bitrate of the network operator
+    self._total_bitrate = total_bitrate
+    # Initialize available bitrate
+    self._available_bitrate = total_bitrate
     # Initialize user success report list
     self._success_list = []
     # Initialize dictionary of service dedicated bitrates
     self._dedicated_bitrates = {}
   
   def __str__(self):
+    """
+    Returns string representation of the object.
+    """
     return "Bidder_" + str(self._id)
   
   @property
   def id(self):
     """
-    Returns unique ID of the object
+    Returns unique ID of the object.
     """
     return self._id
   
   @property
   def costs(self):
     """
-    Returns costs dict
+    Returns dictionary of costs (key: service type).
     """
     return self._costs
   
   @property
   def reputation(self):
     """
-    Returns current reputation of the bidder
+    Returns current reputation.
     """
     return self._reputation
   
   @property
   def reputation_history(self):
     """
-    Returns reputation history of the bidder
+    Returns reputation history.
     """
     return self._reputation_history
   
   @property
   def winning_history(self):
     """
-    Returns winnings history of the bidder
+    Returns winning history.
     """
     return self._winning_history
   
   @property
   def profit_history(self):
     """
-    Returns profit history of the bidder
+    Returns profit history.
     """
     return self._profit_history
   
   @property
   def available_capacity(self):
     """
-    Returns available capacity
+    Returns available bit-rate.
     """
-    return self._available_capacity
+    return self._available_bitrate
   
   @property
   def success_list(self):
     """
-    Returns user success list for this bidder
+    Returns user success list.
     """
     return self._success_list
   
   def _generate_cost(self, service_type):
     """
-    Generates cost for each requested service type
+    Generates cost for each requested service type.
     
     Keyword arguments:
     service_type -- Type of requested service
@@ -173,7 +188,7 @@ class Bidder:
   
   def submit_bid(self, service_type, price_weight, enemy_reputation):
     """
-    Returns bid of the bidder for the specified params
+    Returns bid for the specified parameters.
     
     Keyword arguments:
     service_type -- Type of requested service
@@ -198,13 +213,13 @@ class Bidder:
     else:
       # Calculate bid
       bid = (1 + self._costs[service_type]) / 2
-    # Temporarily, save profit assuming a win
+    # Temporarily, assuming a win, save bid as profit
     self._current_profit = bid - self._costs[service_type] if price_weight != 0.0 else "Inf"
     return bid
   
   def update_winning_history(self, has_won):
     """
-    Updates winnings history list
+    Updates winning history list.
     
     Keyword arguments:
     has_won -- True if won current auction; false otherwise
@@ -217,24 +232,24 @@ class Bidder:
   
   def service_request(self, sr_number, service_type):
     """
-    Updates params as if serviced buyer's service request
+    Updates params as if network operator has serviced buyer's service request.
     
     Keyword arguments:
     sr_number -- Auction (SR) number
-    sr_capacity -- Required bitrate by the service
+    service_type -- Type of the requested service
     """
     # Save current profit in a profit history dict
     self._profit_history[sr_number] = self._current_profit
     # Update bitrate & reputation
     sr_bitrate = DMEventHandler.BITRATES[service_type]
     # Update available bitrate and store user success report
-    if self._available_capacity >= sr_bitrate:
+    if self._available_bitrate >= sr_bitrate:
       self._dedicated_bitrates[sr_number] = sr_bitrate
-      self._available_capacity -= sr_bitrate
+      self._available_bitrate -= sr_bitrate
       self._success_list += [1]
     else:
-      self._dedicated_bitrates[sr_number] = self._available_capacity
-      self._available_capacity = 0
+      self._dedicated_bitrates[sr_number] = self._available_bitrate
+      self._available_bitrate = 0
       self._success_list += [0]
     logging.debug("{} => user success report list: {}".format(self, self._success_list))
     logging.debug("{} => latest user success report: {}".format(self, self._success_list[-1]))
@@ -244,24 +259,27 @@ class Bidder:
       self._success_list.pop(0)
     logging.debug("{} => reputation: {}".format(self, self._reputation))
     logging.debug("{} => service type: {}".format(self, service_type))
-    logging.debug("{} => available bitrate: {}".format(self, self._available_capacity))
+    logging.debug("{} => available bitrate: {}".format(self, self._available_bitrate))
     logging.debug("{} => service no. {} dedicated bitrate: {}".format(self, sr_number, self._dedicated_bitrates[sr_number]))
   
   def finish_servicing_request(self, sr_number):
     """
-    Updates params when finishing servicing buyers service request
+    Updates params when finished servicing buyer's service request.
+    
+    Keyword arguments:
+    sr_number -- Auction (SR) number
     """
     # Update available bitrate
     sr_bitrate = self._dedicated_bitrates[sr_number]
     del self._dedicated_bitrates[sr_number]
-    self._available_capacity += sr_bitrate
-    logging.debug("{} => available bitrate: {}".format(self, self._available_capacity))
-    logging.debug("{} => service no. {} dedicated bitrate: {}".format(self, sr_number, sr_bitrate))
+    self._available_bitrate += sr_bitrate
+    logging.debug("{} => available bit-rate: {}".format(self, self._available_bitrate))
+    logging.debug("{} => service no. {} dedicated bit-rate: {}".format(self, sr_number, sr_bitrate))
   
 
 class DMEventHandler(sim.EventHandler):
   """
-  Digital Marketplace specific event handler
+  Digital Marketplace event handler.
   """
   # Event types
   SR_EVENT = "service_request"
@@ -296,70 +314,70 @@ class DMEventHandler(sim.EventHandler):
   @property
   def bidders(self):
     """
-    Returns list of bidders
+    Returns list of bidders.
     """
     return self._bidders
   
   @bidders.setter
   def bidders(self, bidders):
     """
-    Adds Bidder instances
+    Adds Bidder instances.
     """
     self._bidders = bidders
   
   @property
   def interarrival_rate(self):
     """
-    Returns service requests mean interarrival rate
+    Returns the mean interarrival rate of service requests.
     """
     return self._interarrival_rate
   
   @interarrival_rate.setter
   def interarrival_rate(self, interarrival_rate):
     """
-    Sets service requests mean interarrival rate
+    Sets the mean interarrival rate of service requests.
     """
     self._interarrival_rate = interarrival_rate
   
   @property
   def duration(self):
     """
-    Returns service requests duration
+    Returns the duration of service requests.
     """
     return self._duration
   
   @duration.setter
   def duration(self, duration):
     """
-    Sets service requests duration
+    Sets the duration of service requests.
     """
     self._duration = duration
   
   @property
   def save_dir(self):
     """
-    Returns save directory
+    Returns save directory.
     """
     return self._save_dir
   
   @save_dir.setter
   def save_dir(self, save_dir):
     """
-    Sets save directory
+    Sets save directory.
     """
     self._save_dir = save_dir
   
   @property
   def sim_id(self):
     """
-    Returns simulation id
+    Returns simulation id.
     """
     return self._sim_id
   
   @sim_id.setter
   def sim_id(self, sim_id):
     """
-    Sets simulation id
+    Sets simulation id.
     """
     self._sim_id = sim_id
   
@@ -396,7 +414,7 @@ class DMEventHandler(sim.EventHandler):
   
   def _schedule_sr_event(self, base_time):
     """
-    Schedules next service request event
+    Schedules next service request event.
     """
     prng = self._simulation_engine.prng
     # Generate buyer (service type & price weight pair)
@@ -411,7 +429,7 @@ class DMEventHandler(sim.EventHandler):
   
   def _schedule_st_event(self, base_time, bundle):
     """
-    Schedules next service request termination event
+    Schedules next service request termination event.
     """
     prng = self._simulation_engine.prng
     # Calculate duration
@@ -423,7 +441,7 @@ class DMEventHandler(sim.EventHandler):
   
   def _run_auction(self, event):
     """
-    Runs DM auction
+    Runs DM auction.
     """
     # Increment service request counter
     self._sr_count += 1
@@ -457,7 +475,7 @@ class DMEventHandler(sim.EventHandler):
   
   def _save_results(self):
     """
-    Saves results of the simulation
+    Saves results of the simulation.
     """
     # Create output directory if doesn't exist already
     path = self._save_dir + '/' + str(self._sim_id)
