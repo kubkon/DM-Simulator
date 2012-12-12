@@ -7,11 +7,11 @@ Created by Jakub Konka on 2012-07-23.
 Copyright (c) 2012 University of Strathclyde. All rights reserved.
 """
 import argparse
-import dm
+import des.dm as dm
+import des.sim as sim
 import logging
 import numpy as np
 import warnings
-import sim
 import sys
 import time
 
