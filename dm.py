@@ -159,7 +159,7 @@ class Bidder:
     return self._profit_history
   
   @property
-  def available_capacity(self):
+  def available_bitrate(self):
     """
     Returns available bit-rate.
     """
