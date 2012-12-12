@@ -11,7 +11,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import sim
+import des.sim as sim
 import unittest
 
 
@@ -159,7 +159,7 @@ class Bidder:
     return self._profit_history
   
   @property
-  def available_bitrate(self):
+  def available_bitrate (self):
     """
     Returns available bit-rate.
     """
