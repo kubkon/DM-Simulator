@@ -308,8 +308,8 @@ class DMEventHandler(sim.EventHandler):
     self._sim_id = -1
     # Initialize service request counter
     self._sr_count = 0
-    # Initialize price per service type history list
-    self._prices = {}
+    # Initialize prices history dictionary
+    self._prices = {service_type: {} for service_type in DMEventHandler.BITRATES.keys()}
   
   @property
   def bidders(self):
@@ -463,9 +463,7 @@ class DMEventHandler(sim.EventHandler):
       # Tie
       winner = self._simulation_engine.prng.randint(2)
     # Collect statistics & update system state
-    self._prices.setdefault(service_type,([],[]))
-    self._prices[service_type][0].append(self._sr_count)
-    self._prices[service_type][1].append(bids[winner])
+    self._prices[service_type].setdefault(w, []).append(bids[winner])
     winner = self._bidders[winner]
     for b in self._bidders:
       b.update_winning_history(True if b == winner else False)
@@ -495,13 +493,17 @@ class DMEventHandler(sim.EventHandler):
         writer.writerow(['sr_number', 'winnings'])
         for tup in zip(range(1, self._sr_count+1), b.winning_history):
           writer.writerow(tup)
-    # 3. Prices per service type
-    for key in self._prices:
-      with open(path + '/price_{}.out'.format(key), mode='w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f, delimiter=',')
-        writer.writerow(['sr_number', 'price'])
-        for tup in zip(self._prices[key][0], self._prices[key][1]):
-          writer.writerow(tup)
+    # 3. Prices per service type and price weight
+    logging.debug("Price dict: {}".format(self._prices))
+    for st_dct in self._prices:
+      for w in self._prices[st_dct]:
+        if len(self._prices[st_dct][w]) > 1:
+          logging.debug("Greater than 1! Equals {}".format(len(self._prices[st_dct][w])))
+        with open(path + '/price_{}_{}.out'.format(st_dct, w), mode='w', newline='', encoding='utf-8') as f:
+          writer = csv.writer(f, delimiter=',')
+          writer.writerow(['sr_number', 'price'])
+          for tup in zip(range(1, len(self._prices[st_dct][w]) + 1), self._prices[st_dct][w]):
+            writer.writerow(tup)
   
 
 class BidderTests(unittest.TestCase):
