@@ -310,6 +310,8 @@ class DMEventHandler(sim.EventHandler):
     self._sr_count = 0
     # Initialize prices history dictionary
     self._prices = {service_type: {} for service_type in DMEventHandler.BITRATES.keys()}
+    # Initialize price weight space (discretized interval [0,1])
+    self._w_space = np.linspace(0.01, 1, 100)
   
   @property
   def bidders(self):
@@ -418,7 +420,7 @@ class DMEventHandler(sim.EventHandler):
     """
     prng = self._simulation_engine.prng
     # Generate buyer (service type & price weight pair)
-    price_weight = prng.uniform(0, 1)
+    price_weight = float(prng.choice(self._w_space, 1)[0])
     service_type = prng.choice(list(DMEventHandler.BITRATES.keys()), 1)[0]
     # Calculate interarrival time
     delta_time = prng.exponential(1 / self._interarrival_rate)
@@ -495,10 +497,11 @@ class DMEventHandler(sim.EventHandler):
           writer.writerow(tup)
     # 3. Prices per service type and price weight
     logging.debug("Price dict: {}".format(self._prices))
+    path += '/prices'
+    if not os.path.exists(path):
+      os.makedirs(path)
     for st_dct in self._prices:
       for w in self._prices[st_dct]:
-        if len(self._prices[st_dct][w]) > 1:
-          logging.debug("Greater than 1! Equals {}".format(len(self._prices[st_dct][w])))
         with open(path + '/price_{}_{}.out'.format(st_dct, w), mode='w', newline='', encoding='utf-8') as f:
           writer = csv.writer(f, delimiter=',')
           writer.writerow(['sr_number', 'price'])
