@@ -18,11 +18,13 @@ import sys
 ### Parse command line arguments
 parser = argparse.ArgumentParser(description="DM simulation -- Statistical analysis script")
 parser.add_argument('input_dir', help='directory with simulation results')
+parser.add_argument('context', help='data context; e.g., price, or reputation')
 parser.add_argument('mode', help='transient or steady-state')
 parser.add_argument('--confidence', dest='confidence', default=0.99,
                     type=float, help='confidence value (default: 0.99)')
 args = parser.parse_args()
 input_dir = args.input_dir
+context = args.context
 mode = args.mode.lower()
 confidence = args.confidence
 
@@ -38,9 +40,15 @@ else:
 # File names and paths
 extension = ".out"
 file_names = set([f[:f.find(extension)] for root, _, files in os.walk(input_dir) for f in files \
-                  if f.endswith(extension) and 'transient' not in root and 'steady-state' not in root])
+                  if f.endswith(extension) \
+                  and context in f \
+                  and 'transient' not in root \
+                  and 'steady-state' not in root])
 file_paths = [os.path.join(root, f) for root, _, files in os.walk(input_dir) for f in files \
-              if f.endswith(extension) and 'transient' not in root and 'steady-state' not in root]
+              if f.endswith(extension) \
+              and context in f \
+              and 'transient' not in root \
+              and 'steady-state' not in root]
 # Reference column
 ref_column = 'sr_number'
 
