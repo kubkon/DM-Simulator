@@ -58,32 +58,18 @@ def plot_overlaid(dct, save_dir):
 parser = argparse.ArgumentParser(description='DM simulation plotting script')
 parser.add_argument('input_dir', metavar='input_dir',
                     help='input directory')
+parser.add_argument('context', metavar='context',
+                    help='data context; e.g., price, or reputation')
 args = parser.parse_args()
 input_dir = args.input_dir
+context = args.context
 
-### Reputation history
-# Load data from files
-rep_dct = load_data('reputation', input_dir)
+### Load and plot
+# Load context data from files
+dct = load_data(context, input_dir)
 # Plot
-# Figure 1..k=num of bidders: reps with confidence intervals
-for key in rep_dct:
-  plot_with_ci(rep_dct[key], key, input_dir)
-# Figure k+1: all reps same plot
-plot_overlaid(rep_dct, input_dir)
-
-### Winning history
-# Load data from files
-win_dct = load_data('winning', input_dir)
-# Plot
-# Figure 1..k=num of bidders: winnings with confidence intervals
-for key in win_dct:
-  plot_with_ci(win_dct[key], key, input_dir)
-# Figure k+1: all winnings same plot
-plot_overlaid(win_dct, input_dir)
-
-### Prices
-# Load data from files
-price_dct = load_data('price', input_dir)
-# Plot
-for key in price_dct:
-  plot_with_ci(price_dct[key], key, input_dir)
+# Figure 1..k=num of bidders: data with confidence intervals
+for key in dct:
+  plot_with_ci(dct[key], key, input_dir)
+# Figure k+1: all data same plot
+plot_overlaid(dct, input_dir)
