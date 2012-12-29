@@ -34,6 +34,10 @@ class NumericalToolbox:
     # Calculate params
     v1 = [(1-w)*reps[0], (1-w)*reps[0] + w]
     v2 = [(1-w)*reps[1], (1-w)*reps[1] + w]
+    # Account for numerical imprecission
+    my_round = lambda x: round(x, 6)
+    v1 = list(map(my_round, v1))
+    v2 = list(map(my_round, v2))
     # Check whether nontrivial NE
     if (v2[1] >= v1[1]):
       if (v1[1] <= 2*v2[0] - v2[1]):
