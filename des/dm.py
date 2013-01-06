@@ -11,7 +11,8 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import des.sim as sim
+#import des.sim as sim
+import sim
 import unittest
 
 
@@ -233,7 +234,49 @@ class Bidder:
       self._winning_history += [self._winning_history[-1] + value]
     else:
       self._winning_history += [value]
-  
+ 
+  def _update_reputation(self):
+    """
+    Updates reputation rating.
+
+    """
+    if len(self._success_list) == Bidder.reputation_window_size:
+      self._reputation = 1 - (sum(self._success_list) / Bidder.reputation_window_size)
+      self._success_list.pop(0)
+
+  def _update_available_bitrate(self, sr_number, service_type=None):
+    """
+    Updates available bitrate.
+
+    Keyword arguments:
+    sr_number -- Auction (SR) number
+    service_type -- Type of the requested service
+    """
+    if service_type:
+      sr_bitrate = DMEventHandler.BITRATES[service_type]
+      if self._available_bitrate >= sr_bitrate:
+        self._dedicated_bitrates[sr_number] = sr_bitrate
+        self._available_bitrate -= sr_bitrate
+      else:
+        self._dedicated_bitrates[sr_number] = self._available_bitrate
+        self._available_bitrate = 0
+    else:
+      sr_bitrate = self._dedicated_bitrates[sr_number]
+      del self._dedicated_bitrates[sr_number]
+      self._available_bitrate += sr_bitrate
+
+  def _update_success_list(self, service_type):
+    """
+    Updates user success report list.
+
+    Keyword arguments:
+    service_type -- Type of the requested service
+    """
+    if self._available_bitrate >= DMEventHandler.BITRATES[service_type]:
+      self._success_list += [1]
+    else:
+      self._success_list += [0]
+
   def service_request(self, sr_number, service_type):
     """
     Updates params as if network operator has serviced buyer's service request.
@@ -244,23 +287,14 @@ class Bidder:
     """
     # Save current profit in a profit history dict
     self._profit_history[sr_number] = self._current_profit
-    # Update bitrate & reputation
-    sr_bitrate = DMEventHandler.BITRATES[service_type]
-    # Update available bitrate and store user success report
-    if self._available_bitrate >= sr_bitrate:
-      self._dedicated_bitrates[sr_number] = sr_bitrate
-      self._available_bitrate -= sr_bitrate
-      self._success_list += [1]
-    else:
-      self._dedicated_bitrates[sr_number] = self._available_bitrate
-      self._available_bitrate = 0
-      self._success_list += [0]
+    # Store user success report
+    self._update_success_list(service_type)
+    # Update available bitrate
+    self._update_available_bitrate(sr_number, service_type=service_type)
+    # Compute reputation rating update
+    self._update_reputation()
     logging.debug("{} => user success report list: {}".format(self, self._success_list))
     logging.debug("{} => latest user success report: {}".format(self, self._success_list[-1]))
-    # Compute reputation rating update
-    if len(self._success_list) == Bidder.reputation_window_size:
-      self._reputation = 1 - (sum(self._success_list) / len(self._success_list))
-      self._success_list.pop(0)
     logging.debug("{} => reputation: {}".format(self, self._reputation))
     logging.debug("{} => service type: {}".format(self, service_type))
     logging.debug("{} => available bitrate: {}".format(self, self._available_bitrate))
@@ -274,9 +308,7 @@ class Bidder:
     sr_number -- Auction (SR) number
     """
     # Update available bitrate
-    sr_bitrate = self._dedicated_bitrates[sr_number]
-    del self._dedicated_bitrates[sr_number]
-    self._available_bitrate += sr_bitrate
+    self._update_available_bitrate(sr_number)
     logging.debug("{} => available bit-rate: {}".format(self, self._available_bitrate))
     logging.debug("{} => service no. {} dedicated bit-rate: {}".format(self, sr_number, sr_bitrate))
   
@@ -515,8 +547,45 @@ class DMEventHandler(sim.EventHandler):
 
 class BidderTests(unittest.TestCase):
   def setUp(self):
-    pass
-  
+    self.bidder = Bidder(1000)
+
+  def test_init(self):
+    self.assertEqual(self.bidder.costs, {})
+    self.assertEqual(self.bidder.reputation, 0.5)
+    self.assertEqual(self.bidder._total_bitrate, 1000)
+
+  def test_init_with_optionals(self):
+    bidder = Bidder(100, costs={DMEventHandler.WEB_BROWSING: 0.5, DMEventHandler.EMAIL: 0.25}, reputation=0.75)
+    self.assertEqual(bidder.costs, {DMEventHandler.WEB_BROWSING: 0.5, DMEventHandler.EMAIL: 0.25})
+    self.assertEqual(bidder.reputation, 0.75)
+    self.assertEqual(bidder._total_bitrate, 100)
+
+  def test_reputation_update(self):
+    Bidder.reputation_window_size = 5 
+    self.bidder._success_list = [1,0,1,0,1]
+    self.bidder._update_reputation()
+    self.assertEqual(self.bidder.reputation, 0.4)
+    self.assertEqual(self.bidder._success_list, [0,1,0,1])
+
+  def test_available_bitrate_update(self):
+    sr_numbers = list(range(2))
+    available_bitrates = [488, 0, 512, 1000]
+    # Test bitrate usage
+    for sr_number in sr_numbers:
+      self.bidder._update_available_bitrate(sr_number, DMEventHandler.WEB_BROWSING)
+      self.assertEqual(self.bidder.available_bitrate, available_bitrates[sr_number])
+    # Test bitrate reclaim
+    for sr_number in sr_numbers:
+      self.bidder._update_available_bitrate(sr_number)
+      self.assertEqual(self.bidder.available_bitrate, available_bitrates[sr_number + 2])
+
+  def test_success_list_update(self):
+    sr_bitrate = DMEventHandler.WEB_BROWSING
+    self.bidder._update_success_list(sr_bitrate)
+    self.bidder._update_available_bitrate(0, sr_bitrate)
+    self.bidder._update_success_list(sr_bitrate)
+    self.assertEqual(self.bidder.success_list, [1, 0])
+
 
 class DMEventHandlerTests(unittest.TestCase):
   def setUp(self):
