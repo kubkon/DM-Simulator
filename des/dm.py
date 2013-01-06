@@ -586,6 +586,29 @@ class BidderTests(unittest.TestCase):
     self.bidder._update_success_list(sr_bitrate)
     self.assertEqual(self.bidder.success_list, [1, 0])
 
+  def test_submit_bid(self):
+    service_type = DMEventHandler.WEB_BROWSING
+    # 1. Price weight 0.0
+    bidder = Bidder(1000)
+    bid = bidder.submit_bid(service_type, 0.0, 0.25)
+    self.assertEqual(bid, "Inf")
+    # 2. Price weight 1.0
+    bidder = Bidder(1000, costs={service_type: 0.5})
+    bid = bidder.submit_bid(service_type, 1.0, 1.0)
+    self.assertEqual(bid, (1+0.5)/2)
+    # 3. Equal reputation ratings
+    bidder = Bidder(1000, costs={service_type: 0.5}, reputation=0.5)
+    bid = bidder.submit_bid(service_type, 0.5, 0.5)
+    self.assertEqual(bid, (1+0.5)/2)
+    # 4. Remaining cases
+    bidder = Bidder(1000, costs={service_type: 0.5}, reputation=0.5)
+    bid = bidder.submit_bid(service_type, 0.5, 0.75)
+    th_cost = lambda x: 0.75 + 1 / ((13*8 - 128*x) * (-(81*2)/63) * np.exp(-16/63 + 1/(13-16*x)) + 4*(7*8 - 64*x))
+    th_bids = np.linspace(145/(32*8), 13/16, 1000)
+    diff = list(map(lambda x: np.abs(x-0.5), map(th_cost, th_bids)))
+    th_bid = th_bids[diff.index(min(diff))]
+    self.assertEqual(bid, (th_bid - 0.5*0.5)/0.5)
+
 
 class DMEventHandlerTests(unittest.TestCase):
   def setUp(self):
