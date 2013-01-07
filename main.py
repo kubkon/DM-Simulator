@@ -65,8 +65,10 @@ se = sim.SimulationEngine()
 prng = np.random.RandomState(seed)
 se.prng = prng
 logging.info("Seed value set to: {}".format(seed))
-# Create simulation specific event handler
-event_handler = dm.DMEventHandler()
+# Create simulation specific event handler, and connect
+# it with the simulation engine
+event_handler = dm.DMEventHandler(se)
+se.event_handler = event_handler
 # Add bidders to simulation engine
 event_handler.bidders = bidders
 # Set modeled service types

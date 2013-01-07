@@ -16,13 +16,14 @@ import simulator.models.sim as sim
 import unittest
 import warnings
 
-# Turn RuntimeWarnings into exceptions
-warnings.simplefilter('error', RuntimeWarning)
 
 class NumericalToolbox:
   """
   Helper class; provides numerical routines.
   """
+  # Turn RuntimeWarnings into exceptions
+  warnings.simplefilter('error', RuntimeWarning)
+
   @classmethod
   def estimate_bid_hat_function(cls, w, reps, granularity=1000):
     """
@@ -335,12 +336,12 @@ class DMEventHandler(sim.EventHandler):
   EMAIL = 2
   # Default bit-rates
   BITRATES = {WEB_BROWSING: 512, EMAIL: 256}
-  
-  def __init__(self):
+ 
+  def __init__(self, simulation_engine):
     """
     Constructs DMEventHandler instance
     """
-    super().__init__()
+    super().__init__(simulation_engine)
     ### Simulation building blocks and params
     # Initialize list of bidders
     self._bidders = []
@@ -358,90 +359,90 @@ class DMEventHandler(sim.EventHandler):
     self._prices = {service_type: {} for service_type in DMEventHandler.BITRATES.keys()}
     # Initialize price weight space (discretized interval [0,1])
     self._w_space = np.linspace(0.01, 1, 100)
-  
+ 
   @property
   def bidders(self):
     """
     Returns list of bidders.
     """
     return self._bidders
-  
+ 
   @bidders.setter
   def bidders(self, bidders):
     """
     Adds Bidder instances.
     """
     self._bidders = bidders
-  
+ 
   @property
   def interarrival_rate(self):
     """
     Returns the mean interarrival rate of service requests.
     """
     return self._interarrival_rate
-  
+ 
   @interarrival_rate.setter
   def interarrival_rate(self, interarrival_rate):
     """
     Sets the mean interarrival rate of service requests.
     """
     self._interarrival_rate = interarrival_rate
-  
+ 
   @property
   def duration(self):
     """
     Returns the duration of service requests.
     """
     return self._duration
-  
+ 
   @duration.setter
   def duration(self, duration):
     """
     Sets the duration of service requests.
     """
     self._duration = duration
-  
+ 
   @property
   def save_dir(self):
     """
     Returns save directory.
     """
     return self._save_dir
-  
+ 
   @save_dir.setter
   def save_dir(self, save_dir):
     """
     Sets save directory.
     """
     self._save_dir = save_dir
-  
+ 
   @property
   def sim_id(self):
     """
     Returns simulation id.
     """
     return self._sim_id
-  
+ 
   @sim_id.setter
   def sim_id(self, sim_id):
     """
     Sets simulation id.
     """
     self._sim_id = sim_id
-  
+ 
   def _handle_start(self):
     """
     Overriden
     """
     self._schedule_sr_event(self._simulation_engine.simulation_time)
-  
+ 
   def _handle_stop(self):
     """
     Overriden
     """
     # Save results of the simulation
     self._save_results()
-  
+ 
   def _handle_event(self, event):
     """
     Overriden
@@ -459,7 +460,7 @@ class DMEventHandler(sim.EventHandler):
     else:
       # End of simulation event
       pass
-  
+ 
   def _schedule_sr_event(self, base_time):
     """
     Schedules next service request event.
@@ -474,7 +475,7 @@ class DMEventHandler(sim.EventHandler):
     event = sim.Event(DMEventHandler.SR_EVENT, base_time + delta_time, bundle=(price_weight, service_type))
     # Schedule the event
     self._simulation_engine.schedule(event)
-  
+ 
   def _schedule_st_event(self, base_time, bundle):
     """
     Schedules next service request termination event.
@@ -483,7 +484,7 @@ class DMEventHandler(sim.EventHandler):
     event = sim.Event(DMEventHandler.ST_EVENT, base_time + self._duration, bundle=bundle)
     # Schedule the event
     self._simulation_engine.schedule(event)
-  
+ 
   def _run_auction(self, event):
     """
     Runs DM auction.
@@ -515,7 +516,7 @@ class DMEventHandler(sim.EventHandler):
     winner.service_request(self._sr_count, service_type)
     # Schedule termination event
     self._schedule_st_event(event.time, (winner, self._sr_count))
-  
+ 
   def _save_results(self):
     """
     Saves results of the simulation.

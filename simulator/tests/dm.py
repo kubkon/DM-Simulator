@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 from simulator.models.dm import *
+from simulator.models.sim import SimulationEngine, Event
 
 class BidderTests(unittest.TestCase):
   def setUp(self):
@@ -74,6 +75,15 @@ class BidderTests(unittest.TestCase):
 
 class DMEventHandlerTests(unittest.TestCase):
   def setUp(self):
+    self.dmeh = DMEventHandler(SimulationEngine())
+
+  def test_init(self):
+    self.dmeh.interarrival_rate = 0.5
+    self.dmeh.duration = 2.5
+    self.assertEqual(self.dmeh.interarrival_rate, 0.5)
+    self.assertEqual(self.dmeh.duration, 2.5)
+
+  def test_schedule_sr_event(self):
     pass
   
 

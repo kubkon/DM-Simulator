@@ -3,32 +3,51 @@
 
 from simulator.models.sim import *
 
+class TestEventHandler(EventHandler):
+  def __init__(self, simulation_engine):
+    super().__init__(simulation_engine)
+    self.start_callback_received = False
+    self.stop_callback_received = False
+    self.events = []
+
+  def _handle_start(self):
+    self.start_callback_received = True
+
+  def _handle_stop(self):
+    self.stop_callback_received = True
+
+  def _handle_event(self, event):
+    self.events.append(event)
+
+
 class SimulationEngineTests(unittest.TestCase):
   def setUp(self):
-    self.sim = SimulationEngine()
-  
-  def test_singleton_behaviour(self):
-    sim = SimulationEngine()
-    self.assertEqual(self.sim, sim)
-  
+    self.se = SimulationEngine()
+    self.test_eh = TestEventHandler(self.se)
+    self.se.event_handler = self.test_eh
+ 
+  def test_raises_no_event_handler_exception(self):
+    with self.assertRaisesRegexp(Exception, 'No EventHandler attached!'):
+      SimulationEngine().start()
+
   def test_notify_start(self):
-    def f(): print("Callback received")
-    self.sim.register_callback(f, SimulationEngine.START_CALLBACK)
-    self.sim.stop(1)
-    self.sim.start()
+    self.se.stop(1)
+    self.se.start()
+    self.assertTrue(self.se.event_handler.start_callback_received)
   
   def test_notify_stop(self):
-    def f(): print("Callback received")
-    self.sim.register_callback(f, SimulationEngine.STOP_CALLBACK)
-    self.sim.stop(1)
-    self.sim.start()
+    self.se.stop(1)
+    self.se.start()
+    self.assertTrue(self.se.event_handler.stop_callback_received)
   
   def test_notify_event(self):
-    def f(e): print("Callback received. Event: {}@{}".format(e.identifier, e.time))
-    self.sim.register_callback(f, SimulationEngine.EVENT_CALLBACK)
-    self.sim.stop(2)
-    self.sim.schedule(Event("Dummy", 1))
-    self.sim.start()
+    self.se.stop(2)
+    self.se.schedule(Event("Dummy", 1))
+    self.se.start()
+    self.assertEqual(self.se.event_handler.events[0].identifier, "Dummy")
+    self.assertEqual(self.se.event_handler.events[0].time, 1)
+    self.assertEqual(self.se.event_handler.events[1].identifier, "End")
+    self.assertEqual(self.se.event_handler.events[1].time, 2)
   
 
 class EventTests(unittest.TestCase):
