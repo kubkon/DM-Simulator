@@ -460,10 +460,13 @@ class DMEventHandler(sim.EventHandler):
     else:
       # End of simulation event
       pass
- 
-  def _schedule_sr_event(self, base_time):
+
+  def _generate_sr_event(self, base_time):
     """
-    Schedules next service request event.
+    Returns next service request (SR) event.
+
+    Keyword arguments:
+    base_time -- Base time for the next event to occur
     """
     prng = self._simulation_engine.prng
     # Generate buyer (service type & price weight pair)
@@ -471,17 +474,32 @@ class DMEventHandler(sim.EventHandler):
     service_type = prng.choice(list(DMEventHandler.BITRATES.keys()), 1)[0]
     # Calculate interarrival time
     delta_time = prng.exponential(1 / self._interarrival_rate)
-    # Create next service request event
-    event = sim.Event(DMEventHandler.SR_EVENT, base_time + delta_time, bundle=(price_weight, service_type))
+    # Generate next service request event
+    return sim.Event(DMEventHandler.SR_EVENT, base_time + delta_time, bundle=(price_weight, service_type))
+
+  def _schedule_sr_event(self, base_time):
+    """
+    Schedules next service request event.
+    """
+    event = self._generate_sr_event(base_time)
     # Schedule the event
     self._simulation_engine.schedule(event)
- 
+
+  def _generate_st_event(self, base_time, bundle):
+    """
+    Returns next service termination (ST) event.
+
+    Keyword arguments:
+    base_time -- Base time for the next event to occur
+    bundle -- Passed in Event bundle
+    """
+    return sim.Event(DMEventHandler.ST_EVENT, base_time + self._duration, bundle=bundle)
+
   def _schedule_st_event(self, base_time, bundle):
     """
     Schedules next service request termination event.
     """
-    # Create next service termination event
-    event = sim.Event(DMEventHandler.ST_EVENT, base_time + self._duration, bundle=bundle)
+    event = self._generate_st_event(base_time, bundle) 
     # Schedule the event
     self._simulation_engine.schedule(event)
  

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import numpy as np
 from simulator.models.dm import *
 from simulator.models.sim import SimulationEngine, Event
 
@@ -75,17 +76,31 @@ class BidderTests(unittest.TestCase):
 
 class DMEventHandlerTests(unittest.TestCase):
   def setUp(self):
-    self.dmeh = DMEventHandler(SimulationEngine())
-
-  def test_init(self):
+    self.se = SimulationEngine()
+    self.seed = 0
+    self.se.prng = np.random.RandomState(self.seed)
+    self.dmeh = DMEventHandler(self.se)
     self.dmeh.interarrival_rate = 0.5
     self.dmeh.duration = 2.5
+
+  def test_init(self):
     self.assertEqual(self.dmeh.interarrival_rate, 0.5)
     self.assertEqual(self.dmeh.duration, 2.5)
 
-  def test_schedule_sr_event(self):
-    pass
-  
+  def test_generate_sr_event(self):
+    event = self.dmeh._generate_sr_event(1.5)
+    prng = np.random.RandomState(self.seed)
+    bundle = (float(prng.choice(self.dmeh._w_space, 1)[0]),
+              prng.choice(list(DMEventHandler.BITRATES.keys()), 1)[0])
+    self.assertEqual(event.identifier, DMEventHandler.SR_EVENT)
+    self.assertEqual(event.time, 1.5 + prng.exponential(1/self.dmeh.interarrival_rate))
+    self.assertEqual(event.kwargs.get('bundle', None), bundle)
+
+  def test_generate_st_event(self):
+    event = self.dmeh._generate_st_event(1.5, None)
+    self.assertEqual(event.identifier, DMEventHandler.ST_EVENT)
+    self.assertEqual(event.time, 1.5 + self.dmeh.duration)
+    self.assertEqual(event.kwargs.get('bundle', None), None)
 
 if __name__ == '__main__':
   unittest.main()
