@@ -102,6 +102,18 @@ class DMEventHandlerTests(unittest.TestCase):
     self.assertEqual(event.time, 1.5 + self.dmeh.duration)
     self.assertEqual(event.kwargs.get('bundle', None), None)
 
+  def test_select_winner(self):
+    bidders = [Bidder(10000, costs={DMEventHandler.WEB_BROWSING: 0.75}, reputation=0.25),
+               Bidder(10000, costs={DMEventHandler.WEB_BROWSING: 0.25}, reputation=0.75)]
+    self.dmeh.bidders = bidders
+    self.assertEqual(self.dmeh._select_winner(DMEventHandler.WEB_BROWSING, 0.5),
+                     bidders[1])
+    self.assertEqual(self.dmeh._select_winner(DMEventHandler.WEB_BROWSING, 0.25),
+                     bidders[0])
+    self.assertEqual(self.dmeh._select_winner(DMEventHandler.WEB_BROWSING, 0.75),
+                     bidders[1])
+
+
 if __name__ == '__main__':
   unittest.main()
 

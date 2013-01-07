@@ -7,6 +7,7 @@ Created by Jakub Konka on 2012-08-22.
 Copyright (c) 2012 University of Strathclyde. All rights reserved.
 """
 import csv
+import functools
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -510,31 +511,44 @@ class DMEventHandler(sim.EventHandler):
     # Increment service request counter
     self._sr_count += 1
     # Get requested price weight and service type
-    w, service_type = event.kwargs.get('bundle', None)
-    # Get bids from bidders
-    bids = [self._bidders[0].submit_bid(service_type, w, self._bidders[1].reputation)]
-    bids += [self._bidders[1].submit_bid(service_type, w, self._bidders[0].reputation)]
-    # Elect the winner
-    compound_bids = [w*bids[i] + (1-w)*self._bidders[i].reputation for i in range(2)]
-    winner = 0
-    if compound_bids[0] < compound_bids[1]:
-      # Bidder 1 wins
-      winner = 0
-    elif compound_bids[0] > compound_bids[1]:
-      # Bidder 2 wins
-      winner = 1
-    else:
-      # Tie
-      winner = self._simulation_engine.prng.randint(2)
+    price_weight, service_type = event.kwargs.get('bundle', None)
+    # Select the winner
+    winner = self._select_winner(service_type, price_weight)
+    loser = functools.reduce(lambda acc, x: acc + [x] if x is not winner else acc, self._bidders, [])
     # Collect statistics & update system state
-    self._prices[service_type].setdefault(w, []).append(bids[winner])
-    winner = self._bidders[winner]
+    win_bid = winner.submit_bid(service_type, price_weight, loser[0].reputation)
+    self._prices[service_type].setdefault(price_weight, []).append(win_bid)
     for b in self._bidders:
       b.update_winning_history(True if b == winner else False)
     winner.service_request(self._sr_count, service_type)
     # Schedule termination event
     self._schedule_st_event(event.time, (winner, self._sr_count))
- 
+
+  def _select_winner(self, service_type, price_weight):
+    """
+    Returns winner of an auction characterized by parameters
+    service_type and price_weight.
+
+    Keyword arguments:
+    service_type -- Type of the requested service
+    price_weight -- Requested price weight
+    """
+    # Get bids from bidders
+    bids = [self._bidders[0].submit_bid(service_type, price_weight, self._bidders[1].reputation)]
+    bids += [self._bidders[1].submit_bid(service_type, price_weight, self._bidders[0].reputation)]
+    # Select the winner
+    compound_bids = [price_weight*bids[i] + (1-price_weight)*self._bidders[i].reputation for i in range(2)]
+    if compound_bids[0] < compound_bids[1]:
+      # Bidder 1 wins
+      winner = 0
+      return self._bidders[0]
+    elif compound_bids[0] > compound_bids[1]:
+      # Bidder 2 wins
+      return self._bidders[1]
+    else:
+      # Tie
+      return self._bidders[self._simulation_engine.prng.randint(2)]
+
   def _save_results(self):
     """
     Saves results of the simulation.
