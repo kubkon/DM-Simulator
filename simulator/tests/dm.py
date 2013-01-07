@@ -61,7 +61,11 @@ class BidderTests(unittest.TestCase):
     # 4. Remaining cases
     bidder = Bidder(1000, costs={service_type: 0.5}, reputation=0.5)
     bid = bidder.submit_bid(service_type, 0.5, 0.75)
-    th_cost = lambda x: 0.75 + 1 / ((13*8 - 128*x) * (-(81*2)/63) * np.exp(-16/63 + 1/(13-16*x)) + 4*(7*8 - 64*x))
+    def th_cost(bid):
+      if bid == 13/16:
+        return 0.75
+      else:
+        return 0.75 + 1 / ((13*8 - 128*bid) * (-(81*2)/63) * np.exp(-16/63 + 1/(13-16*bid)) + 4*(7*8 - 64*bid))
     th_bids = np.linspace(145/(32*8), 13/16, 1000)
     diff = list(map(lambda x: np.abs(x-0.5), map(th_cost, th_bids)))
     th_bid = th_bids[diff.index(min(diff))]

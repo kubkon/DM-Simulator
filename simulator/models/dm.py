@@ -11,10 +11,13 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import re
 import simulator.models.sim as sim
-#import sim
 import unittest
+import warnings
 
+# Turn RuntimeWarnings into exceptions
+warnings.simplefilter('error', RuntimeWarning)
 
 class NumericalToolbox:
   """
@@ -51,7 +54,15 @@ class NumericalToolbox:
         c1 = ((v2[1]-v1[1])**2 + 4*(b[0]-v2[1])*(v1[0]-v1[1])) / (-2*(b[0]-b[1])*(v1[0]-v1[1])) * np.exp((v2[1]-v1[1]) / (2*(b[0]-b[1])))
         c2 = ((v1[1]-v2[1])**2 + 4*(b[0]-v1[1])*(v2[0]-v2[1])) / (-2*(b[0]-b[1])*(v2[0]-v2[1])) * np.exp((v1[1]-v2[1]) / (2*(b[0]-b[1])))
         # Inverse bid function
-        vf = lambda x: v1[1] + (v2[1]-v1[1])**2 / (c1*(v2[1]+v1[1]-2*x)*np.exp((v2[1]-v1[1])/(v2[1]+v1[1]-2*x)) + 4*(v2[1]-x))
+        def vf(x):
+          try:
+            return v1[1] + (v2[1]-v1[1])**2 / (c1*(v2[1]+v1[1]-2*x)*np.exp((v2[1]-v1[1])/(v2[1]+v1[1]-2*x)) + 4*(v2[1]-x))
+          except RuntimeWarning as e:
+            if re.search('.*overflow encountered in exp.*', str(e)) or \
+               re.search('.*divide by zero encountered in double_scalars.*', str(e)):
+              return v1[1]
+            else:
+              raise RuntimeWarning(e)
         # Sampling
         bids = np.linspace(b[0], b[1], granularity)
         graph_vf = list(map(vf, bids))

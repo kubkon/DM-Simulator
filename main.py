@@ -11,13 +11,9 @@ import simulator.models.dm as dm
 import simulator.models.sim as sim
 import logging
 import numpy as np
-import warnings
 import sys
 import time
 
-
-### Neglect NumPy overflow warnings
-warnings.simplefilter("ignore", RuntimeWarning)
 
 ### Parse command line arguments
 parser = argparse.ArgumentParser(description="DM simulation -- Main script")
