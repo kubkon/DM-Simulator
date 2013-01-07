@@ -1,5 +1,9 @@
 *
 !*.py
 !*.md
-!/des/
-!des/*.py
+!/simulator/
+!simulator/*.py
+!/simulator/models/
+!simulator/models/*.py
+!/simulator/tests/
+!simulator/tests/*.py
