@@ -2,8 +2,8 @@
 # encoding: utf-8
 
 import numpy as np
-from simulator.models.dm import *
-from simulator.models.sim import SimulationEngine, Event
+from simulator.modules.dm import *
+from simulator.modules.sim import SimulationEngine, Event
 
 class BidderTests(unittest.TestCase):
   def setUp(self):

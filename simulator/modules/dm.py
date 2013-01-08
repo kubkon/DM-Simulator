@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import re
-import simulator.models.sim as sim
+import simulator.modules.sim as sim
 import unittest
 import warnings
 

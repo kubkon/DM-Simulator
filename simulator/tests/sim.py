@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from simulator.models.sim import *
+from simulator.modules.sim import *
 
 class TestEventHandler(EventHandler):
   def __init__(self, simulation_engine):

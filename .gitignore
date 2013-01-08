@@ -3,7 +3,7 @@
 !*.md
 !/simulator/
 !simulator/*.py
-!/simulator/models/
-!simulator/models/*.py
+!/simulator/modules/
+!simulator/modules/*.py
 !/simulator/tests/
 !simulator/tests/*.py

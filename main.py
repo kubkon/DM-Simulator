@@ -7,8 +7,8 @@ Created by Jakub Konka on 2012-07-23.
 Copyright (c) 2012 University of Strathclyde. All rights reserved.
 """
 import argparse
-import simulator.models.dm as dm
-import simulator.models.sim as sim
+import simulator.modules.dm as dm
+import simulator.modules.sim as sim
 import logging
 import numpy as np
 import sys
