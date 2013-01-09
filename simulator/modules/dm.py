@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import re
+import simulator.errors as errors
 import simulator.modules.sim as sim
 import unittest
 import warnings
@@ -21,9 +22,82 @@ import warnings
 class Toolbox:
   """
   Helper class. Implements:
-  - bidding behaviours;
+  - bidding behaviors;
   - reputation rating update mechanisms.
   """
+  @classmethod
+  def bidding_method(cls, params):
+    if not params:
+      return Toolbox.myopic_bidding
+    else:
+      raise errors.BiddingMethodError(params)
+
+  @classmethod
+  def myopic_bidding(cls, price_weight, cost, reputation, enemy_reputation):
+    def estimate_bid_hat_function(w, reps, granularity=1000):
+      warnings.simplefilter('error', RuntimeWarning)
+      # Calculate params
+      v1 = [(1-w)*reps[0], (1-w)*reps[0] + w]
+      v2 = [(1-w)*reps[1], (1-w)*reps[1] + w]
+      # Account for numerical imprecission
+      my_round = lambda x: round(x, 6)
+      v1 = list(map(my_round, v1))
+      v2 = list(map(my_round, v2))
+      # Check whether nontrivial NE
+      if (v2[1] >= v1[1]):
+        if (v1[1] <= 2*v2[0] - v2[1]):
+          graph_vf = np.linspace(v1[0], v1[1], granularity)
+          bids = list(map(lambda x: v2[0], graph_vf))
+        else:
+          # Bid bounds
+          b = [(4 * v1[0] * v2[0] - (v1[1] + v2[1])**2) / (4 * (v1[0] - v1[1] + v2[0] - v2[1])), (v1[1] + v2[1]) / 2]
+          # Constants of integration
+          c1 = ((v2[1]-v1[1])**2 + 4*(b[0]-v2[1])*(v1[0]-v1[1])) / (-2*(b[0]-b[1])*(v1[0]-v1[1])) * np.exp((v2[1]-v1[1]) / (2*(b[0]-b[1])))
+          c2 = ((v1[1]-v2[1])**2 + 4*(b[0]-v1[1])*(v2[0]-v2[1])) / (-2*(b[0]-b[1])*(v2[0]-v2[1])) * np.exp((v1[1]-v2[1]) / (2*(b[0]-b[1])))
+          # Inverse bid function
+          def vf(x):
+            try:
+              return v1[1] + (v2[1]-v1[1])**2 / (c1*(v2[1]+v1[1]-2*x)*np.exp((v2[1]-v1[1])/(v2[1]+v1[1]-2*x)) + 4*(v2[1]-x))
+            except RuntimeWarning as e:
+              if re.search('.*overflow encountered in exp.*', str(e)) or \
+                 re.search('.*divide by zero encountered in double_scalars.*', str(e)):
+                return v1[1]
+              else:
+                raise RuntimeWarning(e)
+          # Sampling
+          bids = np.linspace(b[0], b[1], granularity)
+          graph_vf = list(map(vf, bids))
+      else:
+        if (v2[1] <= 2*v1[0] - v1[1]):
+          graph_vf = np.linspace(v1[0], v1[1], granularity)
+          bids = graph_vf
+        else:
+          # Bid bounds
+          b = [(4 * v1[0] * v2[0] - (v1[1] + v2[1])**2) / (4 * (v1[0] - v1[1] + v2[0] - v2[1])), (v1[1] + v2[1]) / 2]
+          # Constants of integration
+          c1 = ((v2[1]-v1[1])**2 + 4*(b[0]-v2[1])*(v1[0]-v1[1])) / (-2*(b[0]-b[1])*(v1[0]-v1[1])) * np.exp((v2[1]-v1[1]) / (2*(b[0]-b[1])))
+          c2 = ((v1[1]-v2[1])**2 + 4*(b[0]-v1[1])*(v2[0]-v2[1])) / (-2*(b[0]-b[1])*(v2[0]-v2[1])) * np.exp((v1[1]-v2[1]) / (2*(b[0]-b[1])))
+          # Inverse bid functions
+          vf = lambda x: v1[1] + (v2[1]-v1[1])**2 / (c1*(v2[1]+v1[1]-2*x)*np.exp((v2[1]-v1[1])/(v2[1]+v1[1]-2*x)) + 4*(v2[1]-x)) \
+                if x <= b[1] else x
+          # Sampling
+          bids = np.linspace(b[0], v1[1], granularity)
+          graph_vf = list(map(vf, bids))
+      return bids, graph_vf
+
+    if price_weight != 0.0 and price_weight != 1.0 and reputation != enemy_reputation:
+      # Estimate equilibrium bidding strategy functions (bids-hat)
+      bids_hat, costs_hat = estimate_bid_hat_function(price_weight, [reputation, enemy_reputation])
+      # Calculate bid
+      dist = list(map(lambda x: np.abs(x - ((1-price_weight)*reputation + cost*price_weight)), costs_hat))
+      return (bids_hat[dist.index(min(dist))] - (1-price_weight)*reputation) / price_weight
+    elif price_weight == 0.0:
+      # Return the highest possible bid
+      return float('inf')
+    else:
+      # Calculate bid
+      return (1 + cost) / 2
+
   @classmethod
   def reputation_update_method(cls, params):
     if 'window_size' in params:
@@ -31,7 +105,7 @@ class Toolbox:
     elif 'commitment' in params:
       return functools.partial(Toolbox.alisdairs_reputation_update, params['commitment'])
     else:
-      raise Exception('cannot infer reputation update method')
+      raise errors.ReputationUpdateMethodError(params)
 
   @classmethod
   def lebodics_reputation_update(cls, window_size, reputation, success_list):
@@ -49,75 +123,6 @@ class Toolbox:
       return reputation + penalty if reputation + penalty <= 1.0 else 1.0
 
 
-class NumericalToolbox:
-  """
-  Helper class; provides numerical routines.
-  """
-  # Turn RuntimeWarnings into exceptions
-  warnings.simplefilter('error', RuntimeWarning)
-
-  @classmethod
-  def estimate_bid_hat_function(cls, w, reps, granularity=1000):
-    """
-    Estimates myopic bidding function when there are 
-    two network operators.
-    
-    Keyword arguments:
-    cls -- Class instance
-    w -- Price weight
-    reps -- List of reputation ratings
-    granularity -- (Optional) Sampling granularity
-    """
-    # Calculate params
-    v1 = [(1-w)*reps[0], (1-w)*reps[0] + w]
-    v2 = [(1-w)*reps[1], (1-w)*reps[1] + w]
-    # Account for numerical imprecission
-    my_round = lambda x: round(x, 6)
-    v1 = list(map(my_round, v1))
-    v2 = list(map(my_round, v2))
-    # Check whether nontrivial NE
-    if (v2[1] >= v1[1]):
-      if (v1[1] <= 2*v2[0] - v2[1]):
-        graph_vf = np.linspace(v1[0], v1[1], granularity)
-        bids = list(map(lambda x: v2[0], graph_vf))
-      else:
-        # Bid bounds
-        b = [(4 * v1[0] * v2[0] - (v1[1] + v2[1])**2) / (4 * (v1[0] - v1[1] + v2[0] - v2[1])), (v1[1] + v2[1]) / 2]
-        # Constants of integration
-        c1 = ((v2[1]-v1[1])**2 + 4*(b[0]-v2[1])*(v1[0]-v1[1])) / (-2*(b[0]-b[1])*(v1[0]-v1[1])) * np.exp((v2[1]-v1[1]) / (2*(b[0]-b[1])))
-        c2 = ((v1[1]-v2[1])**2 + 4*(b[0]-v1[1])*(v2[0]-v2[1])) / (-2*(b[0]-b[1])*(v2[0]-v2[1])) * np.exp((v1[1]-v2[1]) / (2*(b[0]-b[1])))
-        # Inverse bid function
-        def vf(x):
-          try:
-            return v1[1] + (v2[1]-v1[1])**2 / (c1*(v2[1]+v1[1]-2*x)*np.exp((v2[1]-v1[1])/(v2[1]+v1[1]-2*x)) + 4*(v2[1]-x))
-          except RuntimeWarning as e:
-            if re.search('.*overflow encountered in exp.*', str(e)) or \
-               re.search('.*divide by zero encountered in double_scalars.*', str(e)):
-              return v1[1]
-            else:
-              raise RuntimeWarning(e)
-        # Sampling
-        bids = np.linspace(b[0], b[1], granularity)
-        graph_vf = list(map(vf, bids))
-    else:
-      if (v2[1] <= 2*v1[0] - v1[1]):
-        graph_vf = np.linspace(v1[0], v1[1], granularity)
-        bids = graph_vf
-      else:
-        # Bid bounds
-        b = [(4 * v1[0] * v2[0] - (v1[1] + v2[1])**2) / (4 * (v1[0] - v1[1] + v2[0] - v2[1])), (v1[1] + v2[1]) / 2]
-        # Constants of integration
-        c1 = ((v2[1]-v1[1])**2 + 4*(b[0]-v2[1])*(v1[0]-v1[1])) / (-2*(b[0]-b[1])*(v1[0]-v1[1])) * np.exp((v2[1]-v1[1]) / (2*(b[0]-b[1])))
-        c2 = ((v1[1]-v2[1])**2 + 4*(b[0]-v1[1])*(v2[0]-v2[1])) / (-2*(b[0]-b[1])*(v2[0]-v2[1])) * np.exp((v1[1]-v2[1]) / (2*(b[0]-b[1])))
-        # Inverse bid functions
-        vf = lambda x: v1[1] + (v2[1]-v1[1])**2 / (c1*(v2[1]+v1[1]-2*x)*np.exp((v2[1]-v1[1])/(v2[1]+v1[1]-2*x)) + 4*(v2[1]-x)) \
-              if x <= b[1] else x
-        # Sampling
-        bids = np.linspace(b[0], v1[1], granularity)
-        graph_vf = list(map(vf, bids))
-    return bids, graph_vf
-  
-
 class Bidder:
   """
   Represents network operator in the Digital Marketplace.
@@ -125,25 +130,29 @@ class Bidder:
   # ID counter
   _id_counter = 0
   
-  def __init__(self, total_bitrate=None, costs=None, reputation=None, reputation_params=None):
+  def __init__(self, total_bitrate=None, costs=None, bidding_params=None,
+      reputation=None, reputation_params=None):
     """
     Constructs Bidder instance.
     
     Keyword arguments:
     total_bitrate -- Total available bit-rate
     costs -- Costs per service type
+    bidding_params -- Bidding parameters
     reputation -- Initial reputation value
     reputation_params -- Reputation update specific params
     """
     # Check if arguments were specified
-    if None in (total_bitrate, costs, reputation, reputation_params):
-      raise Exception('one of the arguments uninitialized!')
+    if None in (total_bitrate, costs, bidding_params, reputation, reputation_params):
+      raise errors.UninitializedArgumentError() 
     # Create ID for this instance
     self._id = Bidder._id_counter
     # Increment ID counter
     Bidder._id_counter += 1
     # Initialize costs dictionary (key: service type)
     self._costs = costs
+    # Assign bidding method
+    self._bidding_method = Toolbox.bidding_method(bidding_params)
     # Initialize reputation
     self._reputation = reputation
     # Assign total available bitrate of the network operator
@@ -253,19 +262,7 @@ class Bidder:
     # Save current reputation
     self._reputation_history += [self._reputation]
     # Submit bid
-    bid = 0.0
-    if price_weight != 0.0 and price_weight != 1.0 and self._reputation != enemy_reputation:
-      # Estimate equilibrium bidding strategy functions (bids-hat)
-      bids_hat, costs_hat = NumericalToolbox.estimate_bid_hat_function(price_weight, [self._reputation, enemy_reputation])
-      # Calculate bid
-      dist = list(map(lambda x: np.abs(x - ((1-price_weight)*self._reputation + self._costs[service_type]*price_weight)), costs_hat))
-      bid = (bids_hat[dist.index(min(dist))] - (1-price_weight)*self._reputation) / price_weight
-    elif price_weight == 0.0:
-      bid = "Inf"
-      logging.warning("Bid value equal to Inf")
-    else:
-      # Calculate bid
-      bid = (1 + self._costs[service_type]) / 2
+    bid = self._bidding_method(price_weight, self.costs[service_type], self.reputation, enemy_reputation)
     # Temporarily, assuming a win, save bid as profit
     self._current_profit = bid - self._costs[service_type] if price_weight != 0.0 else "Inf"
     return bid

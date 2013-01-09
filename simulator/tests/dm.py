@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import numpy as np
 import functools
+import numpy as np
+import simulator.errors as errors
 from simulator.modules.dm import *
 from simulator.modules.sim import SimulationEngine, Event
 
@@ -14,14 +15,21 @@ class ToolboxTests(unittest.TestCase):
     self.reputation = 0.5
     self.long_success_list = [1,0,1,0,1,0,1]
     self.short_success_list = [1,0,1,0]
+    self.cost = 0.5
 
-  def test_reputation_update_method(self):
+  def test_reputation_update_method_returns_lebodics_method(self):
     method = Toolbox.reputation_update_method({'window_size':self.window_size})
-    self.assertIs(type(method), functools.partial)
+    self.assertEqual(method.func, Toolbox.lebodics_reputation_update)
+    self.assertEqual(method.args, (self.window_size,))
+  
+  def test_reputation_update_method_returns_alisdairs_method(self):
     method = Toolbox.reputation_update_method({'commitment':self.commitment})
-    self.assertIs(type(method), functools.partial)
-    with self.assertRaisesRegexp(Exception, 'cannot infer reputation update method'):
-      method = Toolbox.reputation_update_method({'param':10})
+    self.assertEqual(method.func, Toolbox.alisdairs_reputation_update)
+    self.assertEqual(method.args, (self.commitment,))
+  
+  def test_reputation_update_method_raises_reputation_update_method_error(self):
+    with self.assertRaises(errors.ReputationUpdateMethodError):
+      Toolbox.reputation_update_method({'param':10})
 
   def test_lebodics_reputation_update(self):
     reputation = Toolbox.lebodics_reputation_update(self.window_size,
@@ -43,96 +51,100 @@ class ToolboxTests(unittest.TestCase):
         self.short_success_list)
     self.assertEqual(reputation, self.reputation + self.commitment / 100 / (1-self.commitment))
 
+  def test_bidding_method_returns_myopic_bidding(self):
+    method = Toolbox.bidding_method({})
+    self.assertEqual(method, Toolbox.myopic_bidding)
+  
+  def test_bidding_method_raises_bidding_method_error(self):
+    with self.assertRaises(errors.BiddingMethodError):
+      Toolbox.bidding_method({'unknown': None})
+
+  def test_myopic_bidding_for_price_weight_0(self):
+    bid = Toolbox.myopic_bidding(0.0, 0.5, 0.25, 0.5)
+    self.assertEqual(bid, float('inf'))
+  
+  def test_myopic_bidding_for_price_weight_1(self):
+    bid = Toolbox.myopic_bidding(1.0, self.cost, 0.25, 0.5)
+    self.assertEqual(bid, (1 + self.cost)/2)
+
+  def test_myopic_bidding_for_equal_reputations(self):
+    bid = Toolbox.myopic_bidding(0.5, self.cost, self.reputation, self.reputation)
+    self.assertEqual(bid, (1 + self.cost)/2)
+  
+  def test_myopic_bidding_for_remaining_cases(self):
+    price_weight = 0.5
+    bid = Toolbox.myopic_bidding(price_weight, self.cost, self.reputation, 0.75)
+    def th_cost(bid):
+      if bid == 13/16:
+        return 0.75
+      else:
+        return 0.75 + 1 / ((13*8 - 128*bid) * (-(81*2)/63) * np.exp(-16/63 + 1/(13-16*bid)) + 4*(7*8 - 64*bid))
+    th_bids = np.linspace(145/(32*8), 13/16, 1000)
+    diff = list(map(lambda x: np.abs(x-0.5), map(th_cost, th_bids)))
+    th_bid = th_bids[diff.index(min(diff))]
+    self.assertEqual(bid, (th_bid - price_weight * self.cost)/price_weight)
+
 
 class BidderTests(unittest.TestCase):
   def setUp(self):
     self.total_bitrate = 1000
     self.costs = {DMEventHandler.WEB_BROWSING: 0.5}
     self.reputation = 0.5
+    # Bidder instance intialized with lebodic's reputation update
     self.lebodic_params = {'window_size':5}
+    self.b_lebodic_myopic = Bidder(total_bitrate=self.total_bitrate,
+      costs=self.costs,
+      bidding_params={},
+      reputation=self.reputation,
+      reputation_params=self.lebodic_params)
+    # Bidder instace initialized with alisdair's reputation update
     self.alisdair_params = {'commitment':0.8}
-    self.bidders = [
-        # Bidder instance intialized with lebodic's reputation update
-        Bidder(total_bitrate=self.total_bitrate,
-        costs=self.costs,
-        reputation=self.reputation,
-        reputation_params=self.lebodic_params),
-        # Bidder instace initialized with alisdair's reputation update
-        Bidder(total_bitrate=self.total_bitrate,
-        costs=self.costs,
-        reputation=self.reputation,
-        reputation_params=self.alisdair_params)]
+    self.b_alisdair_myopic = Bidder(total_bitrate=self.total_bitrate,
+    costs=self.costs,
+    bidding_params={},
+    reputation=self.reputation,
+    reputation_params=self.alisdair_params)
 
-  def test_init_raises_uninitialized_exception(self):
-    with self.assertRaisesRegexp(Exception, "one of the arguments uninitialized!"):
+  def test_init_raises_uninitialized_argument_error(self):
+    with self.assertRaises(errors.UninitializedArgumentError):
       Bidder()
 
-  def test_init_with_lebodic(self):
-    for bidder in self.bidders:
-      self.assertEqual(bidder.costs, self.costs)
-      self.assertEqual(bidder.reputation, self.reputation)
-      self.assertEqual(bidder._total_bitrate, self.total_bitrate)
+  def test_init_properties(self):
+    self.assertEqual(self.b_lebodic_myopic.costs, self.costs)
+    self.assertEqual(self.b_lebodic_myopic.reputation, self.reputation)
+    self.assertEqual(self.b_lebodic_myopic._total_bitrate, self.total_bitrate)
 
-  def test_reputation_update(self):
-    for bidder in self.bidders:
-      bidder._success_list = [1,0,1,0,1]
-      bidder._update_reputation()
-    self.assertEqual(self.bidders[0].reputation, 0.4)
-    self.assertEqual(self.bidders[1].reputation, self.reputation - 0.01)
+  def test_init_lebodics_reputation_update_method(self):
+    self.assertEqual(self.b_lebodic_myopic._reputation_update_method.func, Toolbox.lebodics_reputation_update)
+    self.assertEqual(self.b_lebodic_myopic._reputation_update_method.args, (self.lebodic_params['window_size'],))
+ 
+  def test_init_alisdairs_reputation_update_method(self):
+    self.assertEqual(self.b_alisdair_myopic._reputation_update_method.func, Toolbox.alisdairs_reputation_update)
+    self.assertEqual(self.b_alisdair_myopic._reputation_update_method.args, (self.alisdair_params['commitment'],))
+
+  def test_init_myopic_bidding_method(self):
+    self.assertEqual(self.b_lebodic_myopic._bidding_method, Toolbox.myopic_bidding)
 
   def test_available_bitrate_update(self):
-    for bidder in self.bidders:
-      sr_numbers = list(range(2))
-      available_bitrates = [488, 0, 512, 1000]
-      # Test bitrate usage
-      for sr_number in sr_numbers:
-        bidder._update_available_bitrate(sr_number, DMEventHandler.WEB_BROWSING)
-        self.assertEqual(bidder.available_bitrate, available_bitrates[sr_number])
-      # Test bitrate reclaim
-      for sr_number in sr_numbers:
-        bidder._update_available_bitrate(sr_number)
-        self.assertEqual(bidder.available_bitrate, available_bitrates[sr_number + 2])
+    usage_sr_numbers = [1, 2]
+    usage_bitrates = [488, 0]
+    reclaim_sr_numbers = [2, 1]
+    reclaim_bitrates = [488, self.total_bitrate]
+    # Test bitrate usage
+    for i in range(2):
+      self.b_lebodic_myopic._update_available_bitrate(usage_sr_numbers[i], DMEventHandler.WEB_BROWSING)
+      self.assertEqual(self.b_lebodic_myopic.available_bitrate, usage_bitrates[i])
+    # Test bitrate reclaim
+    for i in range(2):
+      self.b_lebodic_myopic._update_available_bitrate(reclaim_sr_numbers[i])
+      self.assertEqual(self.b_lebodic_myopic.available_bitrate, reclaim_bitrates[i])
 
   def test_success_list_update(self):
-    for bidder in self.bidders:
-      service_type = DMEventHandler.WEB_BROWSING
-      bidder._update_success_list(service_type)
-      bidder._update_available_bitrate(0, service_type)
-      bidder._update_success_list(service_type)
-      self.assertEqual(bidder.success_list, [1, 0])
-
-  def test_submit_bid_for_price_weight_0(self):
-    for bidder in self.bidders:
-      service_type = DMEventHandler.WEB_BROWSING
-      bid = bidder.submit_bid(service_type, 0.0, 0.25)
-      self.assertEqual(bid, "Inf")
-  
-  def test_submit_bid_for_price_weight_1(self):
-    for bidder in self.bidders:
-      service_type = DMEventHandler.WEB_BROWSING
-      bid = bidder.submit_bid(service_type, 1.0, 1.0)
-      self.assertEqual(bid, (1 + self.costs[service_type])/2)
-
-  def test_submit_bid_for_equal_reputations(self):
-    for bidder in self.bidders:
-      service_type = DMEventHandler.WEB_BROWSING
-      bid = bidder.submit_bid(service_type, 0.5, bidder.reputation)
-      self.assertEqual(bid, (1 + self.costs[service_type])/2)
-  
-  def test_submit_bid_for_remaining_cases(self):
-    for bidder in self.bidders:
-      service_type = DMEventHandler.WEB_BROWSING
-      price_weight = 0.5
-      bid = bidder.submit_bid(service_type, price_weight, 0.75)
-      def th_cost(bid):
-        if bid == 13/16:
-          return 0.75
-        else:
-          return 0.75 + 1 / ((13*8 - 128*bid) * (-(81*2)/63) * np.exp(-16/63 + 1/(13-16*bid)) + 4*(7*8 - 64*bid))
-      th_bids = np.linspace(145/(32*8), 13/16, 1000)
-      diff = list(map(lambda x: np.abs(x-0.5), map(th_cost, th_bids)))
-      th_bid = th_bids[diff.index(min(diff))]
-      self.assertEqual(bid, (th_bid - price_weight * self.costs[service_type])/price_weight)
+    service_type = DMEventHandler.WEB_BROWSING
+    self.b_lebodic_myopic._update_success_list(service_type)
+    self.b_lebodic_myopic._update_available_bitrate(0, service_type)
+    self.b_lebodic_myopic._update_success_list(service_type)
+    self.assertEqual(self.b_lebodic_myopic.success_list, [1, 0])
 
 
 class DMEventHandlerTests(unittest.TestCase):
@@ -169,9 +181,11 @@ class DMEventHandlerTests(unittest.TestCase):
   def test_select_winner(self):
     bidders = [
         Bidder(10000, costs={DMEventHandler.WEB_BROWSING: 0.75},
-          reputation=0.25, reputation_params={'window_size':5}),
+          bidding_params={}, reputation=0.25,
+          reputation_params={'window_size':5}),
         Bidder(10000, costs={DMEventHandler.WEB_BROWSING: 0.25},
-          reputation=0.75, reputation_params={'window_size':5})]
+          bidding_params={}, reputation=0.75,
+          reputation_params={'window_size':5})]
     self.dmeh.bidders = bidders
     self.assertEqual(self.dmeh._select_winner(DMEventHandler.WEB_BROWSING, 0.5),
                      bidders[1])
