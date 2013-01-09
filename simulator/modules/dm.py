@@ -18,6 +18,37 @@ import unittest
 import warnings
 
 
+class Toolbox:
+  """
+  Helper class. Implements:
+  - bidding behaviours;
+  - reputation rating update mechanisms.
+  """
+  @classmethod
+  def reputation_update_method(cls, params):
+    if 'window_size' in params:
+      return functools.partial(Toolbox.lebodics_reputation_update, params['window_size'])
+    elif 'commitment' in params:
+      return functools.partial(Toolbox.alisdairs_reputation_update, params['commitment'])
+    else:
+      raise Exception('cannot infer reputation update method')
+
+  @classmethod
+  def lebodics_reputation_update(cls, window_size, reputation, success_list):
+    if len(success_list) >= window_size:
+      return 1 - (sum(success_list[len(success_list)-window_size:]) / window_size)
+    else:
+      return reputation
+
+  @classmethod
+  def alisdairs_reputation_update(cls, commitment, reputation, success_list):
+    if success_list[-1]:
+      return reputation - 0.01 if reputation >= 0.01 else 0.0
+    else:
+      penalty = commitment / 100 / (1-commitment)
+      return reputation + penalty if reputation + penalty <= 1.0 else 1.0
+
+
 class NumericalToolbox:
   """
   Helper class; provides numerical routines.
@@ -93,36 +124,40 @@ class Bidder:
   """
   # ID counter
   _id_counter = 0
-  # Default reputation window size
-  reputation_window_size = 5
   
-  def __init__(self, total_bitrate, costs=None, reputation=0.5):
+  def __init__(self, total_bitrate=None, costs=None, reputation=None, reputation_params=None):
     """
     Constructs Bidder instance.
     
     Keyword arguments:
     total_bitrate -- Total available bit-rate
-    costs -- (Optional) Costs per service type
-    reputation -- (Optional) Initial reputation value
+    costs -- Costs per service type
+    reputation -- Initial reputation value
+    reputation_params -- Reputation update specific params
     """
+    # Check if arguments were specified
+    if None in (total_bitrate, costs, reputation, reputation_params):
+      raise Exception('one of the arguments uninitialized!')
     # Create ID for this instance
     self._id = Bidder._id_counter
     # Increment ID counter
     Bidder._id_counter += 1
     # Initialize costs dictionary (key: service type)
-    self._costs = {} if costs is None else costs
-    # Initialize reputation to default value
+    self._costs = costs
+    # Initialize reputation
     self._reputation = reputation
+    # Assign total available bitrate of the network operator
+    self._total_bitrate = total_bitrate
+    # Initialize available bitrate
+    self._available_bitrate = total_bitrate
+    # Assign reputation rating update method
+    self._reputation_update_method = Toolbox.reputation_update_method(reputation_params)
     # Initialize reputation history list
     self._reputation_history = []
     # Initialize winnings history list
     self._winning_history = []
     # Initialize profit history dict (key: auction number)
     self._profit_history = {}
-    # Assign total available bitrate of the network operator
-    self._total_bitrate = total_bitrate
-    # Initialize available bitrate
-    self._available_bitrate = total_bitrate
     # Initialize user success report list
     self._success_list = []
     # Initialize dictionary of service dedicated bitrates
@@ -253,9 +288,7 @@ class Bidder:
     Updates reputation rating.
 
     """
-    if len(self._success_list) == Bidder.reputation_window_size:
-      self._reputation = 1 - (sum(self._success_list) / Bidder.reputation_window_size)
-      self._success_list.pop(0)
+    self._reputation = self._reputation_update_method(self._reputation, self._success_list)
     logging.debug("{} => reputation: {}".format(self, self._reputation))
 
   def _update_available_bitrate(self, sr_number, service_type=None):

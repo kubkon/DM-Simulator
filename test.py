@@ -11,6 +11,9 @@ import simulator.tests.dm as dm
 import simulator.tests.sim as sim
 
 # Run tests
+# Toolbox class
+unittest.TextTestRunner(verbosity=2).run( \
+    unittest.TestLoader().loadTestsFromTestCase(dm.ToolboxTests))
 # 1. Bidder class
 unittest.TextTestRunner(verbosity=2).run( \
     unittest.TestLoader().loadTestsFromTestCase(dm.BidderTests))
