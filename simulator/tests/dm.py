@@ -112,7 +112,7 @@ class BidderTests(unittest.TestCase):
   def test_init_properties(self):
     self.assertEqual(self.b_lebodic_myopic.costs, self.costs)
     self.assertEqual(self.b_lebodic_myopic.reputation, self.reputation)
-    self.assertEqual(self.b_lebodic_myopic._total_bitrate, self.total_bitrate)
+    self.assertEqual(self.b_lebodic_myopic.total_bitrate, self.total_bitrate)
 
   def test_init_lebodics_reputation_update_method(self):
     self.assertEqual(self.b_lebodic_myopic._reputation_update_method.func, Toolbox.lebodics_reputation_update)
