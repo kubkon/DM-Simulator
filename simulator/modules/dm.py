@@ -165,8 +165,6 @@ class Bidder:
     self._reputation_history = []
     # Initialize winnings history list
     self._winning_history = []
-    # Initialize profit history dict (key: auction number)
-    self._profit_history = {}
     # Initialize user success report list
     self._success_list = []
     # Initialize dictionary of service dedicated bitrates
@@ -184,7 +182,7 @@ class Bidder:
     Returns unique ID of the object.
     """
     return self._id
-  
+
   @property
   def costs(self):
     """
@@ -214,12 +212,12 @@ class Bidder:
     return self._winning_history
   
   @property
-  def profit_history(self):
+  def total_bitrate(self):
     """
-    Returns profit history.
+    Returns total bit-rate.
     """
-    return self._profit_history
-  
+    return self._total_bitrate
+
   @property
   def available_bitrate(self):
     """
@@ -262,10 +260,7 @@ class Bidder:
     # Save current reputation
     self._reputation_history += [self._reputation]
     # Submit bid
-    bid = self._bidding_method(price_weight, self.costs[service_type], self.reputation, enemy_reputation)
-    # Temporarily, assuming a win, save bid as profit
-    self._current_profit = bid - self._costs[service_type] if price_weight != 0.0 else "Inf"
-    return bid
+    return self._bidding_method(price_weight, self.costs[service_type], self.reputation, enemy_reputation)
   
   def update_winning_history(self, has_won):
     """
@@ -280,14 +275,6 @@ class Bidder:
     else:
       self._winning_history += [value]
  
-  def _update_reputation(self):
-    """
-    Updates reputation rating.
-
-    """
-    self._reputation = self._reputation_update_method(self._reputation, self._success_list)
-    logging.debug("{} => reputation: {}".format(self, self._reputation))
-
   def _update_available_bitrate(self, sr_number, service_type=None):
     """
     Updates available bitrate.
@@ -335,14 +322,13 @@ class Bidder:
     service_type -- Type of the requested service
     """ 
     logging.debug("{} => service type: {}".format(self, service_type))
-    # Save current profit in a profit history dict
-    self._profit_history[sr_number] = self._current_profit
     # Store user success report
     self._update_success_list(service_type)
     # Update available bitrate
     self._update_available_bitrate(sr_number, service_type=service_type)
     # Compute reputation rating update
-    self._update_reputation()
+    self._reputation = self._reputation_update_method(self._reputation, self._success_list)
+    logging.debug("{} => reputation: {}".format(self, self._reputation))
   
   def finish_servicing_request(self, sr_number):
     """
