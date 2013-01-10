@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
+"""
+errors.py
 
+Created by Jakub Konka on 2013-01-09.
+Copyright (c) 2013 University of Strathclyde. All rights reserved.
+"""
 
 class Error(Exception):
   """
@@ -18,7 +23,8 @@ class BiddingMethodError(Error):
   params -- Params for which the error occurred
   """
   def __init__(self, params):
-    super().__init__("Cannot infer bidding method from params: {}".format(params))
+    super().__init__(
+        "Cannot infer bidding method from params: {}".format(params))
     self.params = params
 
 
@@ -31,7 +37,8 @@ class ReputationUpdateMethodError(Error):
   params -- Params for which the error occurred
   """
   def __init__(self, params):
-    super().__init__("Cannot infer reputation update method from params: {}".format(params))
+    super().__init__(
+        "Cannot infer reputation update method from params: {}".format(params))
     self.params = params
 
 
@@ -42,5 +49,4 @@ class UninitializedArgumentError(Error):
   """
   def __init__(self):
     super().__init__("Uninitialized argument found")
-
 

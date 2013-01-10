@@ -88,3 +88,4 @@ se.stop(sim_duration)
 logging.info("Simulation started")
 se.start()
 logging.info("Simulation finished")
+

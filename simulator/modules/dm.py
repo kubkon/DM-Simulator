@@ -26,6 +26,9 @@ class BidderHelper:
   - reputation rating update mechanisms.
   """
   def __init__(self):
+    """
+    Constructs BidderHelper instance.
+    """
     self.reputation_update_methods = {
         'lebodic': {
           'method': self.lebodics_reputation_update,
@@ -44,6 +47,13 @@ class BidderHelper:
         }
 
   def bidding_method(self, params):
+    """
+    Returns bidding method inferred from the specified
+    params.
+
+    Arguments:
+    params -- Bidding params
+    """
     if 'method' not in params:
       raise errors.BiddingMethodError(params)
     elif params['method'] not in self.bidding_methods:
@@ -57,6 +67,15 @@ class BidderHelper:
       return functools.partial(self.bidding_methods[method_name]['method'], *args)
 
   def myopic_bidding(self, price_weight, cost, reputation, enemy_reputation):
+    """
+    Returns bid calculated using myopic bidding approach.
+
+    Arguments:
+    price_weight -- Subscriber's price weight
+    cost -- Network operator's cost
+    reputation -- Network operator's reputation
+    enemy_reputation -- Other network operator's reputation
+    """
     def estimate_bid_hat_function(w, reps, granularity=1000):
       warnings.simplefilter('error', RuntimeWarning)
       # Calculate params
@@ -82,8 +101,8 @@ class BidderHelper:
             try:
               return v1[1] + (v2[1]-v1[1])**2 / (c1*(v2[1]+v1[1]-2*x)*np.exp((v2[1]-v1[1])/(v2[1]+v1[1]-2*x)) + 4*(v2[1]-x))
             except RuntimeWarning as e:
-              if re.search('.*overflow encountered in exp.*', str(e)) or \
-                 re.search('.*divide by zero encountered in double_scalars.*', str(e)):
+              if (re.search('.*overflow encountered in exp.*', str(e)) or
+                 re.search('.*divide by zero encountered in double_scalars.*', str(e))):
                 return v1[1]
               else:
                 raise RuntimeWarning(e)
@@ -101,8 +120,8 @@ class BidderHelper:
           c1 = ((v2[1]-v1[1])**2 + 4*(b[0]-v2[1])*(v1[0]-v1[1])) / (-2*(b[0]-b[1])*(v1[0]-v1[1])) * np.exp((v2[1]-v1[1]) / (2*(b[0]-b[1])))
           c2 = ((v1[1]-v2[1])**2 + 4*(b[0]-v1[1])*(v2[0]-v2[1])) / (-2*(b[0]-b[1])*(v2[0]-v2[1])) * np.exp((v1[1]-v2[1]) / (2*(b[0]-b[1])))
           # Inverse bid functions
-          vf = lambda x: v1[1] + (v2[1]-v1[1])**2 / (c1*(v2[1]+v1[1]-2*x)*np.exp((v2[1]-v1[1])/(v2[1]+v1[1]-2*x)) + 4*(v2[1]-x)) \
-                if x <= b[1] else x
+          vf = lambda x: (v1[1] + (v2[1]-v1[1])**2 / (c1*(v2[1]+v1[1]-2*x)*np.exp((v2[1]-v1[1])/(v2[1]+v1[1]-2*x)) + 4*(v2[1]-x))
+                if x <= b[1] else x)
           # Sampling
           bids = np.linspace(b[0], v1[1], granularity)
           graph_vf = list(map(vf, bids))
@@ -122,6 +141,13 @@ class BidderHelper:
       return (1 + cost) / 2
 
   def reputation_update_method(self, params):
+    """
+    Returns reputation update method inferred from the specified
+    params.
+
+    Arguments:
+    params -- Reputation update params
+    """
     if 'method' not in params:
       raise errors.ReputationUpdateMethodError(params)
     elif params['method'] not in self.reputation_update_methods:
@@ -135,12 +161,30 @@ class BidderHelper:
       return functools.partial(self.reputation_update_methods[method_name]['method'], *args)
 
   def lebodics_reputation_update(self, window_size, reputation, success_list):
+    """
+    Returns reputation rating update calculated according to
+    LeBodic's algorithm.
+
+    Arguments:
+    window_size -- Window size
+    reputation -- Current reputation rating
+    success_list -- Current user's success report list
+    """
     if len(success_list) >= window_size:
       return 1 - (sum(success_list[len(success_list)-window_size:]) / window_size)
     else:
       return reputation
 
   def alisdairs_reputation_update(self, commitment, reputation, success_list):
+    """
+    Returns reputation rating update calculated according to
+    McDiarmid's algorithm.
+
+    Arguments:
+    commitment -- Commitment of network operator (ranges from 0.0 to 1.0)
+    reputation -- Current reputation rating
+    success_list -- Current user's success report list
+    """
     if success_list[-1]:
       return reputation - 0.01 if reputation >= 0.01 else 0.0
     else:
@@ -262,7 +306,7 @@ class Bidder:
     """
     Generates cost for each requested service type.
     
-    Keyword arguments:
+    Arguments:
     service_type -- Type of requested service
     """
     # Check if service type already exists in dict
@@ -276,7 +320,7 @@ class Bidder:
     """
     Returns bid for the specified parameters.
     
-    Keyword arguments:
+    Arguments:
     service_type -- Type of requested service
     price_weight -- Price weight requested by the buyer
     enemy_reputation -- Reputation of the other bidder
@@ -292,7 +336,7 @@ class Bidder:
     """
     Updates winning history list.
     
-    Keyword arguments:
+    Arguments:
     has_won -- True if won current auction; false otherwise
     """
     value = 1 if has_won else 0
@@ -305,8 +349,10 @@ class Bidder:
     """
     Updates available bitrate.
 
-    Keyword arguments:
+    Arguments:
     sr_number -- Auction (SR) number
+    
+    Keyword arguments:
     service_type -- Type of the requested service
     """
     if service_type:
@@ -329,7 +375,7 @@ class Bidder:
     """
     Updates user success report list.
 
-    Keyword arguments:
+    Arguments:
     service_type -- Type of the requested service
     """
     if self._available_bitrate >= DMEventHandler.BITRATES[service_type]:
@@ -343,7 +389,7 @@ class Bidder:
     """
     Updates params as if network operator has serviced buyer's service request.
     
-    Keyword arguments:
+    Arguments:
     sr_number -- Auction (SR) number
     service_type -- Type of the requested service
     """ 
@@ -360,7 +406,7 @@ class Bidder:
     """
     Updates params when finished servicing buyer's service request.
     
-    Keyword arguments:
+    Arguments:
     sr_number -- Auction (SR) number
     """
     # Update available bitrate
@@ -383,95 +429,28 @@ class DMEventHandler(sim.EventHandler):
   def __init__(self, simulation_engine):
     """
     Constructs DMEventHandler instance
+
+    Arguments:
+    simulation_engine -- SimulationEngine instance
     """
     super().__init__(simulation_engine)
     ### Simulation building blocks and params
     # Initialize list of bidders
-    self._bidders = []
+    self.bidders = []
     # Initialize service requests mean interarrival rate
-    self._interarrival_rate = 0
+    self.interarrival_rate = 0
     # Initialize service requests duration
-    self._duration = 0
+    self.duration = 0
     # Initialize save directory
-    self._save_dir = ""
+    self.save_dir = ""
     # Initialize simulation id
-    self._sim_id = -1
+    self.sim_id = -1
     # Initialize service request counter
     self._sr_count = 0
     # Initialize prices history dictionary
     self._prices = {service_type: {} for service_type in DMEventHandler.BITRATES.keys()}
     # Initialize price weight space (discretized interval [0,1])
     self._w_space = np.linspace(0.01, 1, 100)
- 
-  @property
-  def bidders(self):
-    """
-    Returns list of bidders.
-    """
-    return self._bidders
- 
-  @bidders.setter
-  def bidders(self, bidders):
-    """
-    Adds Bidder instances.
-    """
-    self._bidders = bidders
- 
-  @property
-  def interarrival_rate(self):
-    """
-    Returns the mean interarrival rate of service requests.
-    """
-    return self._interarrival_rate
- 
-  @interarrival_rate.setter
-  def interarrival_rate(self, interarrival_rate):
-    """
-    Sets the mean interarrival rate of service requests.
-    """
-    self._interarrival_rate = interarrival_rate
- 
-  @property
-  def duration(self):
-    """
-    Returns the duration of service requests.
-    """
-    return self._duration
- 
-  @duration.setter
-  def duration(self, duration):
-    """
-    Sets the duration of service requests.
-    """
-    self._duration = duration
- 
-  @property
-  def save_dir(self):
-    """
-    Returns save directory.
-    """
-    return self._save_dir
- 
-  @save_dir.setter
-  def save_dir(self, save_dir):
-    """
-    Sets save directory.
-    """
-    self._save_dir = save_dir
- 
-  @property
-  def sim_id(self):
-    """
-    Returns simulation id.
-    """
-    return self._sim_id
- 
-  @sim_id.setter
-  def sim_id(self, sim_id):
-    """
-    Sets simulation id.
-    """
-    self._sim_id = sim_id
  
   def _handle_start(self):
     """
@@ -508,7 +487,7 @@ class DMEventHandler(sim.EventHandler):
     """
     Returns next service request (SR) event.
 
-    Keyword arguments:
+    Arguments:
     base_time -- Base time for the next event to occur
     """
     prng = self._simulation_engine.prng
@@ -516,13 +495,16 @@ class DMEventHandler(sim.EventHandler):
     price_weight = float(prng.choice(self._w_space, 1)[0])
     service_type = prng.choice(list(DMEventHandler.BITRATES.keys()), 1)[0]
     # Calculate interarrival time
-    delta_time = prng.exponential(1 / self._interarrival_rate)
+    delta_time = prng.exponential(1 / self.interarrival_rate)
     # Generate next service request event
     return sim.Event(DMEventHandler.SR_EVENT, base_time + delta_time, bundle=(price_weight, service_type))
 
   def _schedule_sr_event(self, base_time):
     """
     Schedules next service request event.
+
+    Arguments:
+    base_time -- Base time for the next event to occur
     """
     event = self._generate_sr_event(base_time)
     # Schedule the event
@@ -532,15 +514,19 @@ class DMEventHandler(sim.EventHandler):
     """
     Returns next service termination (ST) event.
 
-    Keyword arguments:
+    Arguments:
     base_time -- Base time for the next event to occur
     bundle -- Passed in Event bundle
     """
-    return sim.Event(DMEventHandler.ST_EVENT, base_time + self._duration, bundle=bundle)
+    return sim.Event(DMEventHandler.ST_EVENT, base_time + self.duration, bundle=bundle)
 
   def _schedule_st_event(self, base_time, bundle):
     """
     Schedules next service request termination event.
+
+    Arguments:
+    base_time -- Base time for the next event to occur
+    bundle -- Passed in Event bundle
     """
     event = self._generate_st_event(base_time, bundle) 
     # Schedule the event
@@ -549,6 +535,9 @@ class DMEventHandler(sim.EventHandler):
   def _run_auction(self, event):
     """
     Runs DM auction.
+
+    Arguments:
+    event -- Event which triggered the auction
     """
     # Increment service request counter
     self._sr_count += 1
@@ -556,11 +545,11 @@ class DMEventHandler(sim.EventHandler):
     price_weight, service_type = event.kwargs.get('bundle', None)
     # Select the winner
     winner = self._select_winner(service_type, price_weight)
-    loser = functools.reduce(lambda acc, x: acc + [x] if x is not winner else acc, self._bidders, [])
+    loser = functools.reduce(lambda acc, x: acc + [x] if x is not winner else acc, self.bidders, [])
     # Collect statistics & update system state
     win_bid = winner.submit_bid(service_type, price_weight, loser[0].reputation)
     self._prices[service_type].setdefault(price_weight, []).append(win_bid)
-    for b in self._bidders:
+    for b in self.bidders:
       b.update_winning_history(True if b == winner else False)
     winner.service_request(self._sr_count, service_type)
     # Schedule termination event
@@ -571,36 +560,36 @@ class DMEventHandler(sim.EventHandler):
     Returns winner of an auction characterized by parameters
     service_type and price_weight.
 
-    Keyword arguments:
+    Arguments:
     service_type -- Type of the requested service
     price_weight -- Requested price weight
     """
     # Get bids from bidders
-    bids = [self._bidders[0].submit_bid(service_type, price_weight, self._bidders[1].reputation)]
-    bids += [self._bidders[1].submit_bid(service_type, price_weight, self._bidders[0].reputation)]
+    bids = [self.bidders[0].submit_bid(service_type, price_weight, self.bidders[1].reputation)]
+    bids += [self.bidders[1].submit_bid(service_type, price_weight, self.bidders[0].reputation)]
     # Select the winner
-    compound_bids = [price_weight*bids[i] + (1-price_weight)*self._bidders[i].reputation for i in range(2)]
+    compound_bids = [price_weight*bids[i] + (1-price_weight)*self.bidders[i].reputation for i in range(2)]
     if compound_bids[0] < compound_bids[1]:
       # Bidder 1 wins
       winner = 0
-      return self._bidders[0]
+      return self.bidders[0]
     elif compound_bids[0] > compound_bids[1]:
       # Bidder 2 wins
-      return self._bidders[1]
+      return self.bidders[1]
     else:
       # Tie
-      return self._bidders[self._simulation_engine.prng.randint(2)]
+      return self.bidders[self._simulation_engine.prng.randint(2)]
 
   def _save_results(self):
     """
     Saves results of the simulation.
     """
     # Create output directory if doesn't exist already
-    path = self._save_dir + '/' + str(self._sim_id)
+    path = self.save_dir + '/' + str(self.sim_id)
     if not os.path.exists(path):
       os.makedirs(path)
     # Write output data to files
-    for b in self._bidders:
+    for b in self.bidders:
       # 1. Reputation history
       with open(path + '/reputation_{}.out'.format(str(b).lower()), mode='w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f, delimiter=',')

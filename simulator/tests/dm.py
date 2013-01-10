@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 # encoding: utf-8
+"""
+dm.py
 
+Created by Jakub Konka on 2013-01-07.
+Copyright (c) 2013 University of Strathclyde. All rights reserved.
+"""
 import functools
 import numpy as np
 import simulator.errors as errors
-from simulator.modules.dm import *
+from simulator.modules.dm import BidderHelper, Bidder, DMEventHandler
 from simulator.modules.sim import SimulationEngine, Event
+import unittest
 
 
 class BidderHelperTests(unittest.TestCase):

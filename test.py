@@ -11,19 +11,19 @@ import simulator.tests.dm as dm
 import simulator.tests.sim as sim
 
 # Run tests
-# BidderHelper class
-unittest.TextTestRunner(verbosity=2).run( \
+# 1. BidderHelper class
+unittest.TextTestRunner(verbosity=2).run(
     unittest.TestLoader().loadTestsFromTestCase(dm.BidderHelperTests))
-# 1. Bidder class
-unittest.TextTestRunner(verbosity=2).run( \
+# 2. Bidder class
+unittest.TextTestRunner(verbosity=2).run(
     unittest.TestLoader().loadTestsFromTestCase(dm.BidderTests))
-# 2. DMEventHandler class
-unittest.TextTestRunner(verbosity=2).run( \
+# 3. DMEventHandler class
+unittest.TextTestRunner(verbosity=2).run(
     unittest.TestLoader().loadTestsFromTestCase(dm.DMEventHandlerTests))
-# 3. SimulatorEngine class
-unittest.TextTestRunner(verbosity=2).run( \
+# 4. SimulatorEngine class
+unittest.TextTestRunner(verbosity=2).run(
     unittest.TestLoader().loadTestsFromTestCase(sim.SimulationEngineTests))
-# 4. Event class
-unittest.TextTestRunner(verbosity=2).run( \
+# 5. Event class
+unittest.TextTestRunner(verbosity=2).run(
     unittest.TestLoader().loadTestsFromTestCase(sim.EventTests))
 
