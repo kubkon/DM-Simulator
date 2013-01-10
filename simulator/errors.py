@@ -14,31 +14,19 @@ class Error(Exception):
   pass
 
 
-class BiddingMethodError(Error):
+class UnknownMethodError(Error):
   """
-  Exception raised for errors in inferring the bidding
-  method from the specified params.
+  Exception raised for errors in inferring a method
+  by an instance of BidderHelper class from the specified
+  params.
 
   Attributes:
   params -- Params for which the error occurred
   """
   def __init__(self, params):
     super().__init__(
-        "Cannot infer bidding method from params: {}".format(params))
-    self.params = params
-
-
-class ReputationUpdateMethodError(Error):
-  """
-  Exception raised for errors in inferring the reputation
-  rating update method from the specified params.
-
-  Attributes:
-  params -- Params for which the error occurred
-  """
-  def __init__(self, params):
-    super().__init__(
-        "Cannot infer reputation update method from params: {}".format(params))
+        "Cannot infer the method from params: {}".format(params)
+        )
     self.params = params
 
 

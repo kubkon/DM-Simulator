@@ -24,16 +24,28 @@ class BidderHelperTests(unittest.TestCase):
     self.short_success_list = [1,0,1,0]
     self.cost = 0.5
 
-  def test_bidding_method_returns_myopic_bidding(self):
-    method = self.helper.bidding_method({'method': 'myopic'})
+  def test_method_returns_myopic_method(self):
+    method = self.helper.method({'method': 'myopic'})
     self.assertEqual(method.func, self.helper.myopic_bidding)
     self.assertEqual(method.args, ())
   
-  def test_bidding_method_raises_bidding_method_error(self):
-    with self.assertRaises(errors.BiddingMethodError):
-      self.helper.bidding_method({'method': 'unknown'})
-    with self.assertRaises(errors.BiddingMethodError):
-      self.helper.bidding_method({'something': None})
+  def test_method_returns_lebodics_method(self):
+    method = self.helper.method({'method':'lebodic', 'window_size':self.window_size})
+    self.assertEqual(method.func, self.helper.lebodics_reputation_update)
+    self.assertEqual(method.args, (self.window_size,))
+  
+  def test_method_returns_mcdiarmids_method(self):
+    method = self.helper.method({'method':'mcdiarmid', 'commitment':self.commitment})
+    self.assertEqual(method.func, self.helper.mcdiarmids_reputation_update)
+    self.assertEqual(method.args, (self.commitment,))
+  
+  def test_method_raises_unknown_method_error(self):
+    with self.assertRaises(errors.UnknownMethodError):
+      self.helper.method({'method': 'unknown'})
+    with self.assertRaises(errors.UnknownMethodError):
+      self.helper.method({'something': None})
+    with self.assertRaises(errors.UnknownMethodError):
+      self.helper.method({'method': 'lebodic'})
 
   def test_myopic_bidding_for_price_weight_0(self):
     bid = self.helper.myopic_bidding(0.0, 0.5, 0.25, 0.5)
@@ -59,24 +71,6 @@ class BidderHelperTests(unittest.TestCase):
     diff = list(map(lambda x: np.abs(x-0.5), map(th_cost, th_bids)))
     th_bid = th_bids[diff.index(min(diff))]
     self.assertEqual(bid, (th_bid - price_weight * self.cost)/price_weight)
-
-  def test_reputation_update_method_returns_lebodics_method(self):
-    method = self.helper.reputation_update_method({'method':'lebodic', 'window_size':self.window_size})
-    self.assertEqual(method.func, self.helper.lebodics_reputation_update)
-    self.assertEqual(method.args, (self.window_size,))
-  
-  def test_reputation_update_method_returns_mcdiarmids_method(self):
-    method = self.helper.reputation_update_method({'method':'mcdiarmid', 'commitment':self.commitment})
-    self.assertEqual(method.func, self.helper.mcdiarmids_reputation_update)
-    self.assertEqual(method.args, (self.commitment,))
-  
-  def test_reputation_update_method_raises_reputation_update_method_error(self):
-    with self.assertRaises(errors.ReputationUpdateMethodError):
-      self.helper.reputation_update_method({'method':'unknown'})
-    with self.assertRaises(errors.ReputationUpdateMethodError):
-      self.helper.reputation_update_method({'method':'lebodic'})
-    with self.assertRaises(errors.ReputationUpdateMethodError):
-      self.helper.reputation_update_method({'something':None})
 
   def test_lebodics_reputation_update(self):
     reputation = self.helper.lebodics_reputation_update(self.window_size,

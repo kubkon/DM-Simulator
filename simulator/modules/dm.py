@@ -29,7 +29,7 @@ class BidderHelper:
     """
     Constructs BidderHelper instance.
     """
-    self.reputation_update_methods = {
+    self.implemented_methods = {
         'lebodic': {
           'method': self.lebodics_reputation_update,
           'params': ['window_size']
@@ -38,33 +38,31 @@ class BidderHelper:
           'method': self.mcdiarmids_reputation_update,
           'params': ['commitment']
           },
-        }
-    self.bidding_methods = {
         'myopic': {
           'method': self.myopic_bidding,
           'params': []
           },
         }
 
-  def bidding_method(self, params):
+  def method(self, params):
     """
-    Returns bidding method inferred from the specified
+    Returns a method inferred from the specified
     params.
 
     Arguments:
-    params -- Bidding params
+    params -- Passed in params as dict
     """
     if 'method' not in params:
-      raise errors.BiddingMethodError(params)
-    elif params['method'] not in self.bidding_methods:
-      raise errors.BiddingMethodError(params)
+      raise errors.UnknownMethodError(params)
+    elif params['method'] not in self.implemented_methods:
+      raise errors.UnknownMethodError(params)
     else:
       method_name = params['method']
-      for param in self.bidding_methods[method_name]['params']:
+      for param in self.implemented_methods[method_name]['params']:
         if param not in params:
-          raise errors.BiddingMethodError(params)
-      args = [params[p] for p in self.bidding_methods[method_name]['params']]
-      return functools.partial(self.bidding_methods[method_name]['method'], *args)
+          raise errors.UnknownMethodError(params)
+      args = [params[p] for p in self.implemented_methods[method_name]['params']]
+      return functools.partial(self.implemented_methods[method_name]['method'], *args)
 
   def myopic_bidding(self, price_weight, cost, reputation, enemy_reputation):
     """
@@ -140,26 +138,6 @@ class BidderHelper:
       # Calculate bid
       return (1 + cost) / 2
 
-  def reputation_update_method(self, params):
-    """
-    Returns reputation update method inferred from the specified
-    params.
-
-    Arguments:
-    params -- Reputation update params
-    """
-    if 'method' not in params:
-      raise errors.ReputationUpdateMethodError(params)
-    elif params['method'] not in self.reputation_update_methods:
-      raise errors.ReputationUpdateMethodError(params)
-    else:
-      method_name = params['method']
-      for param in self.reputation_update_methods[method_name]['params']:
-        if param not in params:
-          raise errors.ReputationUpdateMethodError(params)
-      args = [params[p] for p in self.reputation_update_methods[method_name]['params']]
-      return functools.partial(self.reputation_update_methods[method_name]['method'], *args)
-
   def lebodics_reputation_update(self, window_size, reputation, success_list):
     """
     Returns reputation rating update calculated according to
@@ -222,7 +200,7 @@ class Bidder:
     self._costs = costs
     # Assign bidding method
     self._bidder_helper = BidderHelper()
-    self._bidding_method = self._bidder_helper.bidding_method(bidding_params)
+    self._bidding_method = self._bidder_helper.method(bidding_params)
     # Initialize reputation
     self._reputation = reputation
     # Assign total available bitrate of the network operator
@@ -230,7 +208,7 @@ class Bidder:
     # Initialize available bitrate
     self._available_bitrate = total_bitrate
     # Assign reputation rating update method
-    self._reputation_update_method = self._bidder_helper.reputation_update_method(reputation_params)
+    self._reputation_update_method = self._bidder_helper.method(reputation_params)
     # Initialize reputation history list
     self._reputation_history = []
     # Initialize winnings history list
