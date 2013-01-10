@@ -19,21 +19,44 @@ import unittest
 import warnings
 
 
-class Toolbox:
+class BidderHelper:
   """
-  Helper class. Implements:
+  Helper class which implements:
   - bidding behaviors;
   - reputation rating update mechanisms.
   """
-  @classmethod
-  def bidding_method(cls, params):
-    if not params:
-      return Toolbox.myopic_bidding
-    else:
-      raise errors.BiddingMethodError(params)
+  def __init__(self):
+    self.reputation_update_methods = {
+        'lebodic': {
+          'method': self.lebodics_reputation_update,
+          'params': ['window_size']
+          },
+        'alisdair': {
+          'method': self.alisdairs_reputation_update,
+          'params': ['commitment']
+          },
+        }
+    self.bidding_methods = {
+        'myopic': {
+          'method': self.myopic_bidding,
+          'params': []
+          },
+        }
 
-  @classmethod
-  def myopic_bidding(cls, price_weight, cost, reputation, enemy_reputation):
+  def bidding_method(self, params):
+    if 'method' not in params:
+      raise errors.BiddingMethodError(params)
+    elif params['method'] not in self.bidding_methods:
+      raise errors.BiddingMethodError(params)
+    else:
+      method_name = params['method']
+      for param in self.bidding_methods[method_name]['params']:
+        if param not in params:
+          raise errors.BiddingMethodError(params)
+      args = [params[p] for p in self.bidding_methods[method_name]['params']]
+      return functools.partial(self.bidding_methods[method_name]['method'], *args)
+
+  def myopic_bidding(self, price_weight, cost, reputation, enemy_reputation):
     def estimate_bid_hat_function(w, reps, granularity=1000):
       warnings.simplefilter('error', RuntimeWarning)
       # Calculate params
@@ -98,24 +121,26 @@ class Toolbox:
       # Calculate bid
       return (1 + cost) / 2
 
-  @classmethod
-  def reputation_update_method(cls, params):
-    if 'window_size' in params:
-      return functools.partial(Toolbox.lebodics_reputation_update, params['window_size'])
-    elif 'commitment' in params:
-      return functools.partial(Toolbox.alisdairs_reputation_update, params['commitment'])
-    else:
+  def reputation_update_method(self, params):
+    if 'method' not in params:
       raise errors.ReputationUpdateMethodError(params)
+    elif params['method'] not in self.reputation_update_methods:
+      raise errors.ReputationUpdateMethodError(params)
+    else:
+      method_name = params['method']
+      for param in self.reputation_update_methods[method_name]['params']:
+        if param not in params:
+          raise errors.ReputationUpdateMethodError(params)
+      args = [params[p] for p in self.reputation_update_methods[method_name]['params']]
+      return functools.partial(self.reputation_update_methods[method_name]['method'], *args)
 
-  @classmethod
-  def lebodics_reputation_update(cls, window_size, reputation, success_list):
+  def lebodics_reputation_update(self, window_size, reputation, success_list):
     if len(success_list) >= window_size:
       return 1 - (sum(success_list[len(success_list)-window_size:]) / window_size)
     else:
       return reputation
 
-  @classmethod
-  def alisdairs_reputation_update(cls, commitment, reputation, success_list):
+  def alisdairs_reputation_update(self, commitment, reputation, success_list):
     if success_list[-1]:
       return reputation - 0.01 if reputation >= 0.01 else 0.0
     else:
@@ -152,7 +177,8 @@ class Bidder:
     # Initialize costs dictionary (key: service type)
     self._costs = costs
     # Assign bidding method
-    self._bidding_method = Toolbox.bidding_method(bidding_params)
+    self._bidder_helper = BidderHelper()
+    self._bidding_method = self._bidder_helper.bidding_method(bidding_params)
     # Initialize reputation
     self._reputation = reputation
     # Assign total available bitrate of the network operator
@@ -160,7 +186,7 @@ class Bidder:
     # Initialize available bitrate
     self._available_bitrate = total_bitrate
     # Assign reputation rating update method
-    self._reputation_update_method = Toolbox.reputation_update_method(reputation_params)
+    self._reputation_update_method = self._bidder_helper.reputation_update_method(reputation_params)
     # Initialize reputation history list
     self._reputation_history = []
     # Initialize winnings history list

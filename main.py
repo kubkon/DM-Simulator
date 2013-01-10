@@ -48,9 +48,11 @@ logging.info("Simulation duration set to: {}".format(sim_duration))
 # Create Bidders
 bidders = [
     dm.Bidder(10000, costs={dm.DMEventHandler.WEB_BROWSING: 0.5},
-      bidding_params={}, reputation=0.0, reputation_params={'window_size': 5}),
+      bidding_params={'method': 'myopic'}, reputation=0.0,
+      reputation_params={'method': 'lebodic', 'window_size': 5}),
     dm.Bidder(10000, costs={dm.DMEventHandler.WEB_BROWSING: 0.5},
-      bidding_params={}, reputation=0.0, reputation_params={'window_size': 5})] 
+      bidding_params={'method': 'myopic'}, reputation=0.0,
+      reputation_params={'method': 'lebodic', 'window_size': 5})] 
 # Service requests mean interarrival rate (per second)
 interarrival_rate = 1
 # Service requests constant duration (in seconds)

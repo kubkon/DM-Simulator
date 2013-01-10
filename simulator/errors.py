@@ -18,7 +18,7 @@ class BiddingMethodError(Error):
   params -- Params for which the error occurred
   """
   def __init__(self, params):
-    super().__init__("Cannot infer bidding method from {}".format(params))
+    super().__init__("Cannot infer bidding method from params: {}".format(params))
     self.params = params
 
 
@@ -31,7 +31,7 @@ class ReputationUpdateMethodError(Error):
   params -- Params for which the error occurred
   """
   def __init__(self, params):
-    super().__init__("Cannot infer reputation update method from {}".format(params))
+    super().__init__("Cannot infer reputation update method from params: {}".format(params))
     self.params = params
 
 
