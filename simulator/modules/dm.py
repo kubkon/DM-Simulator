@@ -34,8 +34,8 @@ class BidderHelper:
           'method': self.lebodics_reputation_update,
           'params': ['window_size']
           },
-        'alisdair': {
-          'method': self.alisdairs_reputation_update,
+        'mcdiarmid': {
+          'method': self.mcdiarmids_reputation_update,
           'params': ['commitment']
           },
         }
@@ -175,7 +175,7 @@ class BidderHelper:
     else:
       return reputation
 
-  def alisdairs_reputation_update(self, commitment, reputation, success_list):
+  def mcdiarmids_reputation_update(self, commitment, reputation, success_list):
     """
     Returns reputation rating update calculated according to
     McDiarmid's algorithm.

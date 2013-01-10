@@ -65,9 +65,9 @@ class BidderHelperTests(unittest.TestCase):
     self.assertEqual(method.func, self.helper.lebodics_reputation_update)
     self.assertEqual(method.args, (self.window_size,))
   
-  def test_reputation_update_method_returns_alisdairs_method(self):
-    method = self.helper.reputation_update_method({'method':'alisdair', 'commitment':self.commitment})
-    self.assertEqual(method.func, self.helper.alisdairs_reputation_update)
+  def test_reputation_update_method_returns_mcdiarmids_method(self):
+    method = self.helper.reputation_update_method({'method':'mcdiarmid', 'commitment':self.commitment})
+    self.assertEqual(method.func, self.helper.mcdiarmids_reputation_update)
     self.assertEqual(method.args, (self.commitment,))
   
   def test_reputation_update_method_raises_reputation_update_method_error(self):
@@ -88,12 +88,12 @@ class BidderHelperTests(unittest.TestCase):
         self.short_success_list)
     self.assertEqual(reputation, self.reputation)
 
-  def test_alisdairs_reputation_update(self):
-    reputation = self.helper.alisdairs_reputation_update(self.commitment,
+  def test_mcdiarmids_reputation_update(self):
+    reputation = self.helper.mcdiarmids_reputation_update(self.commitment,
         self.reputation,
         self.long_success_list)
     self.assertEqual(reputation, self.reputation - 0.01)
-    reputation = self.helper.alisdairs_reputation_update(self.commitment,
+    reputation = self.helper.mcdiarmids_reputation_update(self.commitment,
         self.reputation,
         self.short_success_list)
     self.assertEqual(reputation, self.reputation + self.commitment / 100 / (1-self.commitment))
@@ -111,13 +111,13 @@ class BidderTests(unittest.TestCase):
       bidding_params={'method':'myopic'},
       reputation=self.reputation,
       reputation_params=self.lebodic_params)
-    # Bidder instace initialized with alisdair's reputation update
-    self.alisdair_params = {'method':'alisdair', 'commitment':0.8}
+    # Bidder instace initialized with mcdiarmid's reputation update
+    self.mcdiarmid_params = {'method':'mcdiarmid', 'commitment':0.8}
     self.bidder2 = Bidder(total_bitrate=self.total_bitrate,
     costs=self.costs,
     bidding_params={'method':'myopic'},
     reputation=self.reputation,
-    reputation_params=self.alisdair_params)
+    reputation_params=self.mcdiarmid_params)
 
   def test_init_raises_uninitialized_argument_error(self):
     with self.assertRaises(errors.UninitializedArgumentError):
@@ -133,8 +133,8 @@ class BidderTests(unittest.TestCase):
     self.assertEqual(self.bidder1._reputation_update_method.args, (self.lebodic_params['window_size'],))
  
   def test_init_alisdairs_reputation_update_method(self):
-    self.assertEqual(self.bidder2._reputation_update_method.func, self.bidder2._bidder_helper.alisdairs_reputation_update)
-    self.assertEqual(self.bidder2._reputation_update_method.args, (self.alisdair_params['commitment'],))
+    self.assertEqual(self.bidder2._reputation_update_method.func, self.bidder2._bidder_helper.mcdiarmids_reputation_update)
+    self.assertEqual(self.bidder2._reputation_update_method.args, (self.mcdiarmid_params['commitment'],))
 
   def test_init_myopic_bidding_method(self):
     self.assertEqual(self.bidder1._bidding_method.func, self.bidder1._bidder_helper.myopic_bidding)
