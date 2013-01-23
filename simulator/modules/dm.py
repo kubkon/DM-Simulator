@@ -430,20 +430,20 @@ class DMEventHandler(sim.EventHandler):
     # Initialize price weight space (discretized interval [0,1])
     self._w_space = np.linspace(0.01, 1, 100)
  
-  def _handle_start(self):
+  def handle_start(self):
     """
     Overriden
     """
     self._schedule_sr_event(self._simulation_engine.simulation_time)
  
-  def _handle_stop(self):
+  def handle_stop(self):
     """
     Overriden
     """
     # Save results of the simulation
     self._save_results()
  
-  def _handle_event(self, event):
+  def handle_event(self, event):
     """
     Overriden
     """
